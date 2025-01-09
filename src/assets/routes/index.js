@@ -1,0 +1,61 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Layout from '../components/layout/Layout';
+import Dashboard from '../pages/Dashboard';
+import Vehicles from '../pages/Vehicles';
+import Contracts from '../pages/Contracts';
+import Profile from '../pages/Profile';
+import Login from '../pages/auth/Login';
+import Register from '../pages/auth/Register';
+import ProtectedRoute from './ProtectedRoute';
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Routes publiques */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+
+      {/* Routes protégées */}
+      <Route element={<Layout />}>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles"
+          element={
+            <ProtectedRoute>
+              <Vehicles />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contracts"
+          element={
+            <ProtectedRoute>
+              <Contracts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+
+      {/* Route par défaut pour les URLs non trouvées */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+export default AppRoutes;
