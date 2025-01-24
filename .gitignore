@@ -59,3 +59,7 @@ eslint-debug.log
 
 # TypeScript declaration files (if using TypeScript)
 *.d.ts
+
+# Dossier des uploads temporaires
+tmp/uploads/*
+!tmp/uploads/.gitkeep

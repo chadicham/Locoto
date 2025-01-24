@@ -30,7 +30,7 @@ class StripeService {
         throw error;
       }
     } catch (error) {
-      throw new Error('Erreur lors de l'initialisation du paiement');
+      throw new Error('Erreur lors de l\'initialisation du paiement');
     }
   }
 
@@ -39,7 +39,7 @@ class StripeService {
       const response = await fetch('/api/subscription/current');
       return await response.json();
     } catch (error) {
-      throw new Error('Erreur lors de la récupération de l'abonnement');
+      throw new Error('Erreur lors de la récupération de l\'abonnement');
     }
   }
 
@@ -50,12 +50,12 @@ class StripeService {
       });
 
       if (!response.ok) {
-        throw new Error('Erreur lors de l'annulation');
+        throw new Error('Erreur lors de l\'annulation');
       }
 
       return await response.json();
     } catch (error) {
-      throw new Error('Erreur lors de l'annulation de l'abonnement');
+      throw new Error('Erreur lors de l\'annulation de l\'abonnement');
     }
   }
 }

@@ -1,14 +1,14 @@
 const { stripe, STRIPE_PLANS } = require('../config/stripe.config');
+const User = require('../models/user.model');
 
+// Création de session d'abonnement
 exports.createSubscriptionSession = async (req, res) => {
   try {
     const { planId } = req.body;
-    const user = req.user; // Obtenu via le middleware d'authentification
+    const user = req.user;
 
-    // Créer ou récupérer le client Stripe
     let stripeCustomer = await getOrCreateStripeCustomer(user);
 
-    // Créer la session de paiement
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomer.id,
       payment_method_types: ['card'],
@@ -19,6 +19,9 @@ exports.createSubscriptionSession = async (req, res) => {
       }],
       success_url: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`,
+      metadata: {
+        userId: user.id
+      }
     });
 
     res.json({ sessionId: session.id });
@@ -28,6 +31,7 @@ exports.createSubscriptionSession = async (req, res) => {
   }
 };
 
+// Récupération de l'abonnement actuel
 exports.getCurrentSubscription = async (req, res) => {
   try {
     const user = req.user;
@@ -61,10 +65,11 @@ exports.getCurrentSubscription = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur récupération abonnement:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de l'abonnement' });
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'abonnement' });
   }
 };
 
+// Gestion des webhooks Stripe
 exports.handleWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
 
@@ -83,12 +88,121 @@ exports.handleWebhook = async (req, res) => {
       case 'customer.subscription.deleted':
         await handleSubscriptionCancelled(event.data.object);
         break;
+      case 'invoice.payment_succeeded':
+        await handlePaymentSuccess(event.data.object);
+        break;
+      case 'invoice.payment_failed':
+        await handlePaymentFailure(event.data.object);
+        break;
     }
 
     res.json({ received: true });
   } catch (error) {
     console.error('Erreur webhook:', error);
     res.status(400).json({ error: error.message });
+  }
+};
+
+// Annulation d'abonnement
+exports.cancelSubscription = async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user.stripeCustomerId) {
+      return res.status(400).json({ 
+        error: 'Aucun abonnement actif trouvé' 
+      });
+    }
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      limit: 1,
+      status: 'active'
+    });
+
+    if (!subscriptions.data.length) {
+      return res.status(400).json({ 
+        error: 'Aucun abonnement actif trouvé' 
+      });
+    }
+
+    const subscription = subscriptions.data[0];
+
+    const canceledSubscription = await stripe.subscriptions.update(
+      subscription.id,
+      {
+        cancel_at_period_end: true,
+        metadata: {
+          cancelReason: req.body.reason || 'Non spécifié'
+        }
+      }
+    );
+
+    await User.findByIdAndUpdate(user.id, {
+      subscriptionCancelScheduled: true,
+      subscriptionEndDate: new Date(canceledSubscription.current_period_end * 1000)
+    });
+
+    res.json({
+      message: 'Abonnement annulé avec succès',
+      effectiveDate: new Date(canceledSubscription.current_period_end * 1000)
+    });
+
+  } catch (error) {
+    console.error('Erreur annulation abonnement:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de l\'annulation de l\'abonnement' 
+    });
+  }
+};
+
+// Réactivation d'abonnement
+exports.reactivateSubscription = async (req, res) => {
+  try {
+    const user = req.user;
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      limit: 1,
+      status: 'active'
+    });
+
+    if (!subscriptions.data.length) {
+      return res.status(400).json({ 
+        error: 'Aucun abonnement trouvé' 
+      });
+    }
+
+    const subscription = subscriptions.data[0];
+
+    if (!subscription.cancel_at_period_end) {
+      return res.status(400).json({ 
+        error: 'L\'abonnement n\'est pas programmé pour être annulé' 
+      });
+    }
+
+    await stripe.subscriptions.update(subscription.id, {
+      cancel_at_period_end: false
+    });
+
+    await User.findByIdAndUpdate(user.id, {
+      subscriptionCancelScheduled: false,
+      subscriptionEndDate: null
+    });
+
+    res.json({
+      message: 'Abonnement réactivé avec succès',
+      subscription: {
+        status: subscription.status,
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000)
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur réactivation abonnement:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la réactivation de l\'abonnement' 
+    });
   }
 };
 
@@ -105,18 +219,11 @@ async function getOrCreateStripeCustomer(user) {
     }
   });
 
-  // Mettre à jour l'utilisateur avec l'ID client Stripe
   await User.findByIdAndUpdate(user.id, {
     stripeCustomerId: customer.id
   });
 
   return customer;
-}
-
-function getPlanIdFromStripePrice(stripePriceId) {
-  return Object.entries(STRIPE_PLANS).find(
-    ([key, value]) => value === stripePriceId
-  )?.[0] || 'free';
 }
 
 async function handleSubscriptionChange(subscription) {
@@ -137,4 +244,30 @@ async function handleSubscriptionCancelled(subscription) {
     subscriptionPlan: 'free',
     subscriptionEnd: new Date()
   });
+}
+
+async function handlePaymentSuccess(invoice) {
+  const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+  const userId = subscription.metadata.userId;
+
+  await User.findByIdAndUpdate(userId, {
+    lastPaymentStatus: 'succeeded',
+    lastPaymentDate: new Date()
+  });
+}
+
+async function handlePaymentFailure(invoice) {
+  const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+  const userId = subscription.metadata.userId;
+
+  await User.findByIdAndUpdate(userId, {
+    lastPaymentStatus: 'failed',
+    paymentFailureCount: (user.paymentFailureCount || 0) + 1
+  });
+}
+
+function getPlanIdFromStripePrice(stripePriceId) {
+  return Object.entries(STRIPE_PLANS).find(
+    ([key, value]) => value === stripePriceId
+  )?.[0] || 'free';
 }

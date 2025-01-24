@@ -19,6 +19,7 @@ import {
 import { CheckCircle, Info } from '@mui/icons-material';
 import PaymentDialog from '../../components/subscription/PaymentDialog';
 import stripeService from '../../services/stripeService';
+import CancelSubscriptionDialog from '../../components/subscription/CancelSubscriptionDialog';
 
 const plans = [
   {
@@ -69,6 +70,7 @@ const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   useEffect(() => {
     loadSubscription();
@@ -82,7 +84,7 @@ const SubscriptionPage = () => {
       setSubscription(data);
       setCurrentPlan(data.planId);
     } catch (err) {
-      setError('Erreur lors du chargement de l'abonnement');
+      setError('Erreur lors du chargement de l\'abonnement');
       console.error('Subscription loading error:', err);
     } finally {
       setLoading(false);
@@ -124,10 +126,12 @@ const SubscriptionPage = () => {
         </Alert>
       )}
 
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="subtitle1" sx={{ mb: 1 }}>
-          Forfait actuel
-        </Typography>
+  <Paper sx={{ p: 3, mb: 4 }}>
+    <Typography variant="subtitle1" sx={{ mb: 1 }}>
+      Forfait actuel
+    </Typography>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div>
         <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
           {plans.find(p => p.id === currentPlan)?.name || 'Gratuit'}
         </Typography>
@@ -136,8 +140,18 @@ const SubscriptionPage = () => {
             Prochain renouvellement : {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
           </Typography>
         )}
-      </Paper>
-
+      </div>
+      {currentPlan !== 'free' && (
+        <Button 
+          color="error" 
+          variant="outlined" 
+          onClick={() => setShowCancelDialog(true)}
+        >
+          Annuler l'abonnement
+        </Button>
+      )}
+    </Box>
+  </Paper>
       <Grid container spacing={3}>
         {plans.map((plan) => (
           <Grid item xs={12} md={4} key={plan.id}>
@@ -209,6 +223,16 @@ const SubscriptionPage = () => {
           onSuccess={handlePaymentSuccess}
         />
       )}
+
+      <CancelSubscriptionDialog
+        open={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        currentPlan={plans.find(p => p.id === currentPlan)?.name}
+        onSuccess={() => {
+          loadSubscription(); // Recharger les informations d'abonnement
+          setShowCancelDialog(false);
+        }}
+      />
     </Box>
   );
 };
