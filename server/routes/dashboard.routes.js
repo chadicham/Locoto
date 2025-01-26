@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboard.controller');
-const auth = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/auth.middleware');
 
-router.get('/statistics', auth, dashboardController.getStatistics);
-router.get('/current-rentals', auth, dashboardController.getCurrentRentals);
+// Application du middleware d'authentification
+router.use(protect);
+
+// Configuration des routes du dashboard
+router.get('/statistics', dashboardController.getStatistics);
+router.get('/current-rentals', dashboardController.getCurrentRentals);
 
 module.exports = router;

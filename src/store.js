@@ -1,5 +1,28 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 
+// Slice pour l'authentification
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: {
+    user: null,
+    token: null,
+    isAuthenticated: false
+  },
+  reducers: {
+    setCredentials: (state, action) => {
+      const { user, token } = action.payload;
+      state.user = user;
+      state.token = token;
+      state.isAuthenticated = true;
+    },
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+    }
+  }
+});
+
 // Slice pour les véhicules
 const vehicleSlice = createSlice({
   name: 'vehicles',
@@ -51,25 +74,48 @@ const contractSlice = createSlice({
 // Slice pour les utilisateurs
 const userSlice = createSlice({
   name: 'user',
-  initialState: { subscription: { vehicleLimit: 0 }, isAuthenticated: false },
+  initialState: { 
+    subscription: { vehicleLimit: 0 }, 
+    isAuthenticated: false,
+    profile: null
+  },
   reducers: {
-    setUser: (state, action) => action.payload,
+    setUser: (state, action) => {
+      return { ...state, ...action.payload };
+    },
     updateSubscription: (state, action) => {
       state.subscription = action.payload;
     },
+    updateProfile: (state, action) => {
+      state.profile = action.payload;
+    },
+    clearUser: (state) => {
+      state.subscription = { vehicleLimit: 0 };
+      state.isAuthenticated = false;
+      state.profile = null;
+    }
   },
 });
 
-// Configuration du store
+// Configuration du store avec tous les reducers
 const store = configureStore({
   reducer: {
+    auth: authSlice.reducer,
     vehicles: vehicleSlice.reducer,
     contracts: contractSlice.reducer,
     user: userSlice.reducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+      immutableCheck: false,
+    }),
 });
 
-// Export des actions et du store
+// Export des actions d'authentification
+export const { setCredentials, logout } = authSlice.actions;
+
+// Export des actions des véhicules
 export const {
   setVehicles,
   addVehicle,
@@ -78,6 +124,7 @@ export const {
   archiveVehicle,
 } = vehicleSlice.actions;
 
+// Export des actions des contrats
 export const {
   setContracts,
   addContract,
@@ -85,6 +132,19 @@ export const {
   removeContract,
 } = contractSlice.actions;
 
-export const { setUser, updateSubscription } = userSlice.actions;
+// Export des actions utilisateur
+export const { 
+  setUser, 
+  updateSubscription, 
+  updateProfile, 
+  clearUser 
+} = userSlice.actions;
 
+// Export des sélecteurs
+export const selectAuth = (state) => state.auth;
+export const selectUser = (state) => state.user;
+export const selectVehicles = (state) => state.vehicles;
+export const selectContracts = (state) => state.contracts;
+
+// Export du store
 export default store;

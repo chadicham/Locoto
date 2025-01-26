@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import axios from 'axios';
 import {
   Box,
   Paper,
@@ -10,7 +11,8 @@ import {
   Link,
   InputAdornment,
   IconButton,
-  Alert
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
 import { setCredentials } from '../../store/slices/authSlice';
@@ -27,6 +29,7 @@ const LoginPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -36,30 +39,49 @@ const LoginPage = () => {
     setError('');
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.email) {
+      errors.email = 'L\'email est requis';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Format d\'email invalide';
+    }
+    
+    if (!formData.password) {
+      errors.password = 'Le mot de passe est requis';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+    
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const formErrors = validateForm();
+
+    if (Object.keys(formErrors).length > 0) {
+      setError('Veuillez corriger les erreurs dans le formulaire');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
     
     try {
-      // Simulons une authentification pour l'exemple
-      // À remplacer par votre appel API réel
-      const response = await new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            user: {
-              id: 1,
-              email: formData.email,
-              firstName: 'John',
-              lastName: 'Doe'
-            },
-            token: 'fake-jwt-token'
-          });
-        }, 1000);
-      });
-
-      dispatch(setCredentials(response));
+      const response = await axios.post('/api/auth/login', formData);
+      
+      dispatch(setCredentials({
+        user: response.data.user,
+        token: response.data.token
+      }));
+      
       navigate(from, { replace: true });
     } catch (err) {
-      setError('Email ou mot de passe incorrect');
+      setError(err.response?.data?.message || 'Une erreur est survenue lors de la connexion');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -146,9 +168,14 @@ const LoginPage = () => {
             fullWidth
             variant="contained"
             size="large"
+            disabled={isLoading}
             sx={{ mb: 2 }}
           >
-            Se connecter
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Se connecter'
+            )}
           </Button>
 
           <Box sx={{ textAlign: 'center' }}>
