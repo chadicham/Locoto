@@ -53,17 +53,21 @@ exports.register = catchAsync(async (req, res) => {
 
 exports.login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
+    console.log('Tentative de connexion:', { email }); // Log de débogage
 
     if (!email || !password) {
         throw new AppError('Veuillez fournir un email et un mot de passe', 400);
     }
 
     const user = await User.findOne({ email }).select('+password');
+    console.log('Utilisateur trouvé:', user ? 'Oui' : 'Non'); // Log de débogage
+
     if (!user || !(await user.comparePassword(password))) {
         throw new AppError('Email ou mot de passe incorrect', 401);
     }
 
     const token = generateToken(user._id);
+    console.log('Token généré avec succès'); // Log de débogage
 
     res.status(200).json({
         status: 'success',

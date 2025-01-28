@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 class DashboardService {
-  // Récupération des données complètes du tableau de bord
   async getDashboardData() {
     try {
       const [statisticsData, rentalsData] = await Promise.all([
@@ -19,14 +26,13 @@ class DashboardService {
     }
   }
 
-  // Récupération des statistiques générales
   async getStatistics() {
     try {
       const { data } = await axios.get('/api/dashboard/statistics');
       return {
-        totalVehicles: data.totalVehicles,
-        activeRentals: data.activeRentals,
-        monthlyRevenue: data.monthlyRevenue
+        totalVehicles: data.totalVehicles || 0,
+        activeRentals: data.activeRentals || 0,
+        monthlyRevenue: data.monthlyRevenue || 0
       };
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error);
@@ -34,14 +40,13 @@ class DashboardService {
     }
   }
 
-  // Récupération des locations en cours et à venir
   async getCurrentRentals() {
     try {
       const { data } = await axios.get('/api/dashboard/current-rentals');
       return data.map(rental => ({
-        id: rental.id,
+        id: rental._id || rental.id,
         vehicle: `${rental.vehicle.brand} ${rental.vehicle.model}`,
-        vehicleId: rental.vehicle.id,
+        vehicleId: rental.vehicle._id || rental.vehicle.id,
         renter: rental.renterName,
         renterId: rental.renterId,
         startDate: rental.startDate,
@@ -55,7 +60,6 @@ class DashboardService {
     }
   }
 
-  // Utilitaire pour déterminer le statut d'une location
   getRentalStatus(startDate, endDate) {
     const now = new Date();
     const start = new Date(startDate);

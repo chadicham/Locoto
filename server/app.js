@@ -4,46 +4,42 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const path = require('path');
-// Ajouter au début du fichier app.js, juste après la création de l'app
-console.log('Initialisation de l\'application Express...');
-
-// Ajouter après la configuration des middlewares
-console.log('Middlewares configurés avec succès');
-
-// Ajouter après la configuration des routes
-console.log('Routes configurées avec succès');
-// Importation des routes
 const routes = require('./routes');
 
-// Initialisation de l'application Express
+console.log('Initialisation de l\'application Express...');
+
 const app = express();
 
-// Configuration des middlewares
-app.use(helmet()); // Sécurité
-
-app.use(cors({
-    origin: process.env.FRONTEND_URL,
+// Configuration CORS plus permissive en développement
+const corsOptions = {
+    origin: process.env.NODE_ENV === 'development' 
+        ? ['http://localhost:5173', 'http://localhost:3000']
+        : process.env.FRONTEND_URL,
     credentials: true
-}));
+};
 
-app.use(compression()); // Compression des réponses
-app.use(morgan('dev')); // Logging des requêtes en mode développement
+app.use(cors(corsOptions));
+app.use(helmet());
+app.use(compression());
+app.use(morgan('dev'));
 
-// Configuration pour la gestion des fichiers
-app.use(express.static(path.join(__dirname, 'public')));
+// Route Stripe webhook avant le middleware de parsing JSON
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 
-// Parsing des requêtes
+// Middlewares de parsing pour toutes les autres routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configuration pour les uploads de fichiers
+// Configuration des fichiers statiques
+app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Middleware pour la gestion des fichiers bruts (pour Stripe webhooks)
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+console.log('Middlewares configurés avec succès');
 
 // Routes de l'API
 app.use('/api', routes);
+
+console.log('Routes configurées avec succès');
 
 // Gestion des erreurs 404
 app.use((req, res, next) => {

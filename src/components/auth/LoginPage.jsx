@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import axios from 'axios';
+import api from '../../services/axiosConfig';
+
 import {
   Box,
   Paper,
@@ -60,26 +62,34 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formErrors = validateForm();
-
+  
     if (Object.keys(formErrors).length > 0) {
       setError('Veuillez corriger les erreurs dans le formulaire');
       return;
     }
-
+  
     setIsLoading(true);
     setError('');
     
     try {
-      const response = await axios.post('/api/auth/login', formData);
+      console.log('Tentative de connexion avec:', formData); // Ajout de ce log
+      const response = await api.post('/auth/login', formData);
+      console.log('Réponse du serveur:', response.data); // Ajout de ce log
       
-      dispatch(setCredentials({
-        user: response.data.user,
-        token: response.data.token
-      }));
-      
-      navigate(from, { replace: true });
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        
+        dispatch(setCredentials({
+          user: response.data.user,
+          token: response.data.token
+        }));
+        
+        navigate(from, { replace: true });
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Une erreur est survenue lors de la connexion');
+      console.error('Erreur complète:', err);
+      console.error('Détails de l\'erreur:', err.response?.data);
+      setError(err.response?.data?.message || 'Identifiants incorrects');
     } finally {
       setIsLoading(false);
     }
