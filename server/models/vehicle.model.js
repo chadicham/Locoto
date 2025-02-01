@@ -52,7 +52,7 @@ const vehicleSchema = new mongoose.Schema({
   type: {
     type: String,
     required: [true, 'Le type de véhicule est requis'],
-    enum: ['Citadine', 'Berline', 'SUV', 'Break', 'Monospace', 'Utilitaire']
+    enum: ['Voiture', 'Moto', 'Scooter']
   },
   licensePlate: {
     type: String,
@@ -88,16 +88,29 @@ const vehicleSchema = new mongoose.Schema({
   features: [{
     type: String,
     enum: [
-      'Climatisation',
-      'GPS',
-      'Bluetooth',
-      'Siège bébé',
-      'Régulateur de vitesse',
-      'Caméra de recul',
-      'Toit ouvrant',
-      'Audio premium'
+      // Features pour Voiture
+      'Climatisation', 'GPS', 'Bluetooth', 'Siège bébé',
+      'Régulateur de vitesse', 'Caméra de recul', 'Toit ouvrant',
+      'Audio premium',
+      // Features pour Moto
+      'ABS', 'Top case', 'Valises latérales', 'Protège-mains',
+      'Bulle réglable',
+      // Features pour Scooter
+      'Pare-brise', 'Support smartphone', 'Coffre sous selle',
+      'Port USB'
     ]
   }],
+  
+  // Ajoutons aussi les champs spécifiques pour Moto/Scooter
+  engineSize: {
+    type: Number,
+    min: 0
+  },
+  seats: {
+    type: Number,
+    min: 1,
+    max: 9
+  },
   images: [imageSchema],
   maintenanceHistory: [maintenanceRecordSchema],
   lastMaintenanceDate: {

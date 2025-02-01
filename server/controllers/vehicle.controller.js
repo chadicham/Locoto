@@ -1,7 +1,7 @@
 const Vehicle = require('../models/vehicle.model');
 const Contract = require('../models/contract.model');
 const User = require('../models/user.model');
-const cloudinary = require('../config/cloudinary');
+const { uploadFile, deleteFile } = require('../config/cloudinary');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const { body, validationResult } = require('express-validator');
@@ -11,10 +11,53 @@ const fs = require('fs');
 exports.validateVehicleInput = [
   body('brand').notEmpty().trim().withMessage('La marque est requise'),
   body('model').notEmpty().trim().withMessage('Le modèle est requis'),
-  body('year').isInt({ min: 1900, max: new Date().getFullYear() + 1 })
-    .withMessage('Année invalide'),
-  body('registrationNumber').notEmpty().trim()
-    .withMessage("Le numéro d'immatriculation est requis")
+  body('type').notEmpty().isIn(['Voiture', 'Moto', 'Scooter']).withMessage('Type de véhicule invalide'),
+  body('licensePlate').notEmpty().trim().withMessage("L'immatriculation est requise"),
+  body('fuel').notEmpty().withMessage('Le type de carburant est requis'),
+  body('year').isString().custom(value => {
+    const year = parseInt(value);
+    if (isNaN(year) || year < 1900 || year > new Date().getFullYear() + 1) {
+      throw new Error('Année invalide');
+    }
+    return true;
+  }),
+  body('mileage').isString().custom(value => {
+    const mileage = parseInt(value);
+    if (isNaN(mileage) || mileage < 0) {
+      throw new Error('Kilométrage invalide');
+    }
+    return true;
+  }),
+  body('dailyRate').isString().custom(value => {
+    const rate = parseFloat(value);
+    if (isNaN(rate) || rate <= 0) {
+      throw new Error('Tarif journalier invalide');
+    }
+    return true;
+  }),
+  body('features').custom(value => {
+    if (!value) return true;
+    try {
+      const features = typeof value === 'string' ? JSON.parse(value) : value;
+      if (!Array.isArray(features)) {
+        throw new Error('Les équipements doivent être une liste');
+      }
+      return true;
+    } catch (error) {
+      throw new Error('Format des équipements invalide');
+    }
+  }),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Erreurs de validation:', errors.array());
+      return res.status(400).json({ 
+        message: 'Erreur de validation',
+        errors: errors.array() 
+      });
+    }
+    next();
+  }
 ];
 
 exports.getVehicles = catchAsync(async (req, res) => {
@@ -43,6 +86,27 @@ exports.getVehicleById = catchAsync(async (req, res) => {
 });
 
 exports.createVehicle = catchAsync(async (req, res) => {
+  console.log('Corps de la requête reçue:', req.body);
+  
+  // Parser les features si elles sont en format string
+  if (req.body.features && typeof req.body.features === 'string') {
+    try {
+      req.body.features = JSON.parse(req.body.features);
+    } catch (error) {
+      throw new AppError('Format des équipements invalide', 400);
+    }
+  }
+
+  // Parser les documents si en format string
+  if (req.body.documents && typeof req.body.documents === 'string') {
+    try {
+      req.body.documents = JSON.parse(req.body.documents);
+    } catch (error) {
+      throw new AppError('Format des documents invalide', 400);
+    }
+  }
+
+  // Vérifier la limite de véhicules
   const subscription = await getSubscriptionStatus(req.user.id);
   const vehicleCount = await Vehicle.countDocuments({ 
     owner: req.user.id,
@@ -53,18 +117,32 @@ exports.createVehicle = catchAsync(async (req, res) => {
     throw new AppError('Limite de véhicules atteinte pour votre forfait', 403);
   }
 
+  // Préparer les données du véhicule
   const vehicleData = {
     ...req.body,
     owner: req.user.id,
     images: []
   };
 
+  // Gérer les images si présentes
   if (req.files?.length > 0) {
-    vehicleData.images = await handleImageUpload(req.files, req.user.id);
+    const uploadedImages = await handleImageUpload(req.files, req.user.id);
+    vehicleData.images = uploadedImages;
   }
 
-  const vehicle = await Vehicle.create(vehicleData);
-  res.status(201).json(vehicle);
+  console.log('Données du véhicule à créer:', vehicleData);
+
+  // Créer le véhicule
+  try {
+    const vehicle = await Vehicle.create(vehicleData);
+    res.status(201).json(vehicle);
+  } catch (error) {
+    console.error('Erreur lors de la création:', error);
+    if (error.name === 'ValidationError') {
+      throw new AppError(`Erreur de validation: ${error.message}`, 400);
+    }
+    throw error;
+  }
 });
 
 exports.updateVehicle = catchAsync(async (req, res) => {
@@ -217,27 +295,46 @@ exports.checkAvailability = catchAsync(async (req, res) => {
 const handleImageUpload = async (files, userId) => {
   if (!files?.length) return [];
 
-  const uploadPromises = files.map(file => 
-    cloudinary.uploader.upload(file.path, {
-      folder: `vehicles/${userId}`,
-      resource_type: 'auto'
-    })
-  );
+  try {
+    const uploadPromises = files.map(async file => {
+      // L'appel correct devrait inclure le fichier comme paramètre
+      const result = await uploadFile(file.path, `vehicles/${userId}`);
+      return {
+        url: result.url,
+        publicId: result.publicId
+      };
+    });
 
-  const results = await Promise.all(uploadPromises);
-  
-  files.forEach(file => fs.unlinkSync(file.path));
+    const results = await Promise.all(uploadPromises);
+    
+    // Nettoyage des fichiers temporaires
+    for (const file of files) {
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    }
 
-  return results.map(result => ({
-    url: result.secure_url,
-    publicId: result.public_id
-  }));
+    return results;
+  } catch (error) {
+    // Nettoyage des fichiers temporaires en cas d'erreur
+    for (const file of files) {
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    }
+    console.error('Erreur lors du téléchargement:', error);
+    throw new AppError("Erreur lors du téléchargement des images", 500);
+  }
 };
 
 const handleImageDeletion = async (imageIds) => {
-  await Promise.all(
-    imageIds.map(id => cloudinary.uploader.destroy(id))
-  );
+  try {
+    const deletePromises = imageIds.map(id => deleteFile(id));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Erreur lors de la suppression des images:', error);
+    throw error;
+  }
 };
 
 const getSubscriptionStatus = async (userId) => {

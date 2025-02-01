@@ -27,31 +27,57 @@ import {
 import vehicleService from '../../services/vehicleService';
 
 const VEHICLE_TYPES = [
-  'Citadine',
-  'Berline',
-  'SUV',
-  'Break',
-  'Monospace',
-  'Utilitaire'
+  'Voiture',
+  'Moto',
+  'Scooter'
 ];
 
-const FUEL_TYPES = [
-  'Essence',
-  'Diesel',
-  'Hybride',
-  'Électrique'
-];
+const FEATURES_BY_TYPE = {
+  Voiture: [
+    'Climatisation',
+    'GPS',
+    'Bluetooth',
+    'Siège bébé',
+    'Régulateur de vitesse',
+    'Caméra de recul',
+    'Toit ouvrant',
+    'Audio premium'
+  ],
+  Moto: [
+    'ABS',
+    'Régulateur de vitesse',
+    'GPS',
+    'Top case',
+    'Valises latérales',
+    'Protège-mains',
+    'Bulle réglable'
+  ],
+  Scooter: [
+    'Top case',
+    'Pare-brise',
+    'Support smartphone',
+    'ABS',
+    'Coffre sous selle',
+    'Port USB'
+  ]
+};
 
-const FEATURES = [
-  'Climatisation',
-  'GPS',
-  'Bluetooth',
-  'Siège bébé',
-  'Régulateur de vitesse',
-  'Caméra de recul',
-  'Toit ouvrant',
-  'Audio premium'
-];
+const FUEL_TYPES_BY_VEHICLE = {
+  Voiture: [
+    'Essence',
+    'Diesel',
+    'Hybride',
+    'Électrique'
+  ],
+  Moto: [
+    'Essence',
+    'Électrique'
+  ],
+  Scooter: [
+    'Essence',
+    'Électrique'
+  ]
+};
 
 const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -66,6 +92,8 @@ const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
     description: '',
     features: [],
     images: [],
+    engineSize: '',
+    seats: '',
     documents: {
       insurance: null,
       registration: null
@@ -81,25 +109,31 @@ const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
     const errors = {};
 
     switch (activeStep) {
-      case 0: // Informations principales
+      case 0:
         if (!formData.brand) errors.brand = 'La marque est requise';
         if (!formData.model) errors.model = 'Le modèle est requis';
         if (!formData.type) errors.type = 'Le type de véhicule est requis';
         if (!formData.licensePlate) errors.licensePlate = "L'immatriculation est requise";
         break;
 
-      case 1: // Caractéristiques techniques
+      case 1:
         if (!formData.fuel) errors.fuel = 'Le type de carburant est requis';
         if (!formData.mileage) errors.mileage = 'Le kilométrage est requis';
         if (formData.mileage < 0) errors.mileage = 'Le kilométrage doit être positif';
         if (!formData.dailyRate) errors.dailyRate = 'Le tarif journalier est requis';
         if (formData.dailyRate <= 0) errors.dailyRate = 'Le tarif doit être supérieur à 0';
+        if (formData.type === 'Voiture' && !formData.seats) {
+          errors.seats = 'Le nombre de places est requis';
+        }
+        if ((formData.type === 'Moto' || formData.type === 'Scooter') && !formData.engineSize) {
+          errors.engineSize = 'La cylindrée est requise';
+        }
         break;
 
-      case 2: // Photos et documents
+      case 2:
         if (previewImages.length === 0) {
           errors.images = 'Au moins une photo est requise';
-        }
+        } 
         break;
     }
 
@@ -111,7 +145,11 @@ const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      ...(name === 'type' && { 
+        features: [],
+        fuel: '' 
+      })
     }));
 
     if (error?.[name]) {
@@ -281,7 +319,7 @@ const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
                   required
                   fullWidth
                 >
-                  {FUEL_TYPES.map(fuel => (
+                  {formData.type && FUEL_TYPES_BY_VEHICLE[formData.type].map(fuel => (
                     <MenuItem key={fuel} value={fuel}>{fuel}</MenuItem>
                   ))}
                 </TextField>
@@ -335,28 +373,71 @@ const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
                   }}
                 />
               </Grid>
+
+              {formData.type && (
+                <Grid item xs={12} sm={6}>
+                  {formData.type === 'Voiture' ? (
+                    <TextField
+                      name="seats"
+                      label="Nombre de places"
+                      type="number"
+                      value={formData.seats}
+                      onChange={handleChange}
+                      error={!!error?.seats}
+                      helperText={error?.seats}
+                      required
+                      fullWidth
+                      InputProps={{
+                        inputProps: { min: 1, max: 9 }
+                      }}
+                    />
+                  ) : (
+                    <TextField
+                      name="engineSize"
+                      label="Cylindrée"
+                      type="number"
+                      value={formData.engineSize}
+                      onChange={handleChange}
+                      error={!!error?.engineSize}
+                      helperText={error?.engineSize}
+                      required
+                      fullWidth
+                      InputProps={{
+                        endAdornment: <Typography variant="body2">cm³</Typography>,
+                        inputProps: { min: 0 }
+                      }}
+                    />
+                  )}
+                </Grid>
+              )}
             </Grid>
 
             <Divider sx={{ my: 3 }} />
 
             <Typography variant="subtitle1" gutterBottom>
-              Équipements
+              {formData.type ? `Équipements disponibles pour ${formData.type}` : 'Équipements'}
             </Typography>
-            <Grid container spacing={1}>
-              {FEATURES.map(feature => (
-                <Grid item xs={12} sm={6} key={feature}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.features.includes(feature)}
-                        onChange={() => handleFeaturesChange(feature)}
-                      />
-                    }
-                    label={feature}
-                  />
-                </Grid>
-              ))}
-            </Grid>
+            {formData.type ? (
+              <Grid container spacing={1}>
+                {FEATURES_BY_TYPE[formData.type].map(feature => (
+                  <Grid item xs={12} sm={6} key={feature}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.features.includes(feature)}
+                          onChange={() => handleFeaturesChange(feature)}
+                        />
+                      }
+                      label={feature}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Typography color="text.secondary">
+                Veuillez d'abord sélectionner un type de véhicule
+              </Typography>
+            )}
           </>
         );
 
