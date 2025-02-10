@@ -205,6 +205,7 @@ const { data } = await api.post('/vehicles', formData, {
 
  formatVehicleData(vehicle) {
    return {
+     _id: vehicle._id,
      id: vehicle._id,
      brand: vehicle.brand,
      model: vehicle.model,

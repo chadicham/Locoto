@@ -1,10 +1,13 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+axios.defaults.baseURL = API_URL;
+
 class ContractService {
   async getContracts(filters = {}) {
     try {
       const queryParams = new URLSearchParams(filters).toString();
-      const { data } = await axios.get(`/api/contracts?${queryParams}`);
+      const { data } = await axios.get(`/contracts?${queryParams}`);
       return this.formatContractsData(data);
     } catch (error) {
       console.error('Erreur lors de la récupération des contrats:', error);
@@ -14,7 +17,7 @@ class ContractService {
 
   async getContractById(id) {
     try {
-      const { data } = await axios.get(`/api/contracts/${id}`);
+      const { data } = await axios.get(`/contracts/${id}`);
       return this.formatContractData(data);
     } catch (error) {
       console.error('Erreur lors de la récupération du contrat:', error);
@@ -22,47 +25,41 @@ class ContractService {
     }
   }
 
-  async createContract(contractData) {
+  async checkVehicleAvailability(vehicleId, startDate, endDate) {
     try {
-      const formData = new FormData();
-      
-      // Traitement des données de base du contrat
-      Object.keys(contractData).forEach(key => {
-        if (key !== 'documents') {
-          if (typeof contractData[key] === 'object') {
-            formData.append(key, JSON.stringify(contractData[key]));
-          } else {
-            formData.append(key, contractData[key]);
-          }
-        }
-      });
-
-      // Traitement des documents
-      if (contractData.documents) {
-        Object.entries(contractData.documents).forEach(([type, files]) => {
-          if (Array.isArray(files)) {
-            files.forEach(file => {
-              formData.append(`documents_${type}`, file);
-            });
-          } else {
-            formData.append(`documents_${type}`, files);
-          }
+        const response = await axios.get(`/vehicles/${vehicleId}/availability`, {
+            params: {
+                startDate,
+                endDate
+            }
         });
-      }
-
-      const { data } = await axios.post('/api/contracts', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      return this.formatContractData(data);
+        return response.data.available;
     } catch (error) {
-      console.error('Erreur lors de la création du contrat:', error);
-      throw new Error('Impossible de créer le contrat');
+        console.error('Erreur lors de la vérification de disponibilité:', error);
+        return false;
     }
-  }
+}
 
+async createContract(contractData) {
+    try {
+        const formData = new FormData();
+        formData.append('contractData', JSON.stringify(contractData));
+
+        const response = await axios.post('/contracts', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error('Erreur lors de la création du contrat:', {
+            message: error.message,
+            data: error.response?.data
+        });
+        throw error;
+    }
+}
   async updateContract(id, contractData) {
     try {
       const formData = new FormData();
@@ -89,7 +86,7 @@ class ContractService {
         });
       }
 
-      const { data } = await axios.put(`/api/contracts/${id}`, formData, {
+      const { data } = await axios.put(`/contracts/${id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -104,7 +101,7 @@ class ContractService {
 
   async cancelContract(id, reason) {
     try {
-      const { data } = await axios.post(`/api/contracts/${id}/cancel`, { reason });
+      const { data } = await axios.post(`/contracts/${id}/cancel`, { reason });
       return this.formatContractData(data);
     } catch (error) {
       console.error('Erreur lors de l\'annulation du contrat:', error);
@@ -114,7 +111,7 @@ class ContractService {
 
   async finalizeContract(id, returnDetails) {
     try {
-      const { data } = await axios.post(`/api/contracts/${id}/finalize`, returnDetails);
+      const { data } = await axios.post(`/contracts/${id}/finalize`, returnDetails);
       return this.formatContractData(data);
     } catch (error) {
       console.error('Erreur lors de la finalisation du contrat:', error);
@@ -124,7 +121,7 @@ class ContractService {
 
   async generateContractPDF(id) {
     try {
-      const response = await axios.get(`/api/contracts/${id}/pdf`, {
+      const response = await axios.get(`/contracts/${id}/pdf`, {
         responseType: 'blob'
       });
       
@@ -144,7 +141,7 @@ class ContractService {
 
   async validateSignature(id, partyType, signatureData) {
     try {
-      const { data } = await axios.post(`/api/contracts/${id}/sign`, {
+      const { data } = await axios.post(`/contracts/${id}/sign`, {
         partyType,
         signature: signatureData
       });

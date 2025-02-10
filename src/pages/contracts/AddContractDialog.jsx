@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,14 +13,20 @@ import {
   Box,
   Typography,
   MenuItem,
-  InputAdornment
+  InputAdornment,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { fr } from 'date-fns/locale';
-import DocumentUpload from '../../components/contracts/DocumentUpload';
+import { format } from 'date-fns';
+import DocumentUpload from './DocumentUpload';
+import SignatureCanvas from './SignatureCanvas';
 import { generateContractPDF } from '../../services/pdfService';
+import vehicleService from '../../services/vehicleService';
+import contractService from '../../services/contractService';
 
 const steps = [
   'Choix du véhicule',
@@ -30,9 +36,15 @@ const steps = [
   'Signatures'
 ];
 
-const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
+const AddContractDialog = ({ open, onClose, onSubmit }) => {
+  // États
   const [activeStep, setActiveStep] = useState(0);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    
     // Étape 1 : Véhicule
     vehicleId: '',
     
@@ -57,16 +69,36 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
     // Étape 4 : Documents
     idCard: null,
     drivingLicense: null,
-    proofOfAddress: null,
     vehiclePhotos: null,
 
     // Étape 5 : Signatures
     renterSignature: null,
     ownerSignature: null
   });
-
   const [errors, setErrors] = useState({});
 
+  // Effet pour charger les véhicules
+  useEffect(() => {
+    const loadVehicles = async () => {
+      if (!open) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const fetchedVehicles = await vehicleService.getVehicles();
+        setVehicles(fetchedVehicles);
+      } catch (error) {
+        console.error('Erreur lors du chargement des véhicules:', error);
+        setError('Impossible de charger la liste des véhicules');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadVehicles();
+  }, [open]);
+
+  // Gestionnaires d'événements
   const handleChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -111,7 +143,7 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
         if (!formData.renterCity) newErrors.renterCity = 'La ville est requise';
         if (!formData.renterPostalCode) {
           newErrors.renterPostalCode = 'Le code postal est requis';
-        } else if (!/^\d{5}$/.test(formData.renterPostalCode)) {
+        } else if (!/^\d{4}$/.test(formData.renterPostalCode)) {
           newErrors.renterPostalCode = 'Code postal invalide';
         }
         break;
@@ -130,7 +162,6 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
       case 3:
         if (!formData.idCard) newErrors.idCard = "La pièce d'identité est requise";
         if (!formData.drivingLicense) newErrors.drivingLicense = 'Le permis de conduire est requis';
-        if (!formData.proofOfAddress) newErrors.proofOfAddress = 'Le justificatif de domicile est requis';
         if (!formData.vehiclePhotos) newErrors.vehiclePhotos = "Les photos du véhicule sont requises";
         break;
 
@@ -144,33 +175,69 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+
   const handleNext = async () => {
     if (validateStep()) {
-      if (activeStep === steps.length - 1) {
-        try {
-          // Générer le PDF
-          const pdfDoc = await generateContractPDF(formData);
-          
-          // Télécharger le PDF
-          pdfDoc.download(`contrat_${formData.renterName.replace(/\s+/g, '_')}.pdf`);
-          
-          // Soumettre le contrat
-          onSubmit(formData);
-          
-          // Fermer le dialogue
-          onClose();
-        } catch (error) {
-          console.error('Erreur lors de la génération du PDF:', error);
-          setErrors(prev => ({
-            ...prev,
-            general: 'Erreur lors de la génération du contrat'
-          }));
+        if (activeStep === steps.length - 1) {
+            try {
+                setIsSubmitting(true); // Empêcher les soumissions multiples
+
+                const selectedVehicle = vehicles.find(v => v._id === formData.vehicleId);
+                
+                if (!selectedVehicle) {
+                    throw new Error('Aucun véhicule sélectionné');
+                }
+
+                const contractData = {
+                    vehicle: selectedVehicle._id,
+                    renter: {
+                        firstName: formData.renterName.split(' ')[0],
+                        lastName: formData.renterName.split(' ').slice(1).join(' '),
+                        email: formData.renterEmail,
+                        phone: formData.renterPhone,
+                        address: {
+                            street: formData.renterAddress,
+                            city: formData.renterCity,
+                            postalCode: formData.renterPostalCode
+                        }
+                    },
+                    rental: {
+                        startDate: formData.startDate,
+                        endDate: formData.endDate,
+                        initialMileage: parseInt(formData.initialMileage),
+                        allowedMileage: parseInt(formData.allowedMileage),
+                        dailyRate: parseInt(formData.rentalAmount),
+                        deposit: parseInt(formData.deposit) || 0,
+                        totalAmount: parseInt(formData.rentalAmount),
+                        initialFuelLevel: 100
+                    },
+                    status: 'draft'
+                };
+
+                const savedContract = await contractService.createContract(contractData);
+                
+                if (savedContract.error) {
+                    throw new Error(savedContract.error);
+                }
+
+                onSubmit(savedContract);
+                onClose();
+
+            } catch (error) {
+                console.error('Erreur lors de la création du contrat:', error);
+                const errorMessage = error.response?.data?.error || error.message || 'Impossible de créer le contrat';
+                setErrors(prev => ({
+                    ...prev,
+                    general: errorMessage
+                }));
+            } finally {
+                setIsSubmitting(false);
+            }
+        } else {
+            setActiveStep((prev) => prev + 1);
         }
-      } else {
-        setActiveStep((prev) => prev + 1);
-      }
     }
-  };
+};
 
   const handleBack = () => {
     setActiveStep((prev) => prev - 1);
@@ -189,14 +256,33 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
                 value={formData.vehicleId}
                 onChange={(e) => handleChange('vehicleId', e.target.value)}
                 error={!!errors.vehicleId}
-                helperText={errors.vehicleId}
+                helperText={errors.vehicleId || (loading ? 'Chargement des véhicules...' : '')}
+                disabled={loading}
               >
-                {vehicles.map((vehicle) => (
-                  <MenuItem key={vehicle.id} value={vehicle.id}>
-                    {vehicle.brand} {vehicle.model} - {vehicle.licensePlate}
+                {loading ? (
+                  <MenuItem disabled>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CircularProgress size={20} />
+                      Chargement...
+                    </Box>
                   </MenuItem>
-                ))}
+                ) : vehicles.length > 0 ? (
+                  vehicles.map((vehicle) => (
+                    <MenuItem key={vehicle._id} value={vehicle._id}>
+                      {vehicle.brand} {vehicle.model} - {vehicle.licensePlate}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled>
+                    {error || 'Aucun véhicule disponible'}
+                  </MenuItem>
+                )}
               </TextField>
+              {error && (
+                <Alert severity="error" sx={{ mt: 1 }}>
+                  {error}
+                </Alert>
+              )}
             </Grid>
           </Grid>
         );
@@ -377,50 +463,49 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
           </Box>
         );
 
-        case 4:
-            return (
-              <Box>
-                <Typography variant="subtitle1" gutterBottom>
-                  Signatures du contrat
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Veuillez signer dans les zones prévues à cet effet. Les signatures seront incluses dans le contrat final.
-                </Typography>
-          
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <SignatureCanvas
-                      label="Signature du locataire"
-                      onSignatureCapture={(signature) => handleChange('renterSignature', signature)}
-                      error={errors.renterSignature}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <SignatureCanvas
-                      label="Signature du propriétaire"
-                      onSignatureCapture={(signature) => handleChange('ownerSignature', signature)}
-                      error={errors.ownerSignature}
-                    />
-                  </Grid>
-                </Grid>
-          
-                {/* Résumé des informations importantes */}
-                <Box sx={{ mt: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Résumé du contrat
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    En signant ce contrat, les deux parties s'engagent à respecter les conditions suivantes :
-                  </Typography>
-                  <ul>
-                    <li>Location du {format(formData.startDate, 'dd/MM/yyyy')} au {format(formData.endDate, 'dd/MM/yyyy')}</li>
-                    <li>Montant total de la location : {formData.rentalAmount}€</li>
-                    <li>Caution : {formData.deposit}€</li>
-                    <li>Kilométrage autorisé : {formData.allowedMileage} km</li>
-                  </ul>
-                </Box>
-              </Box>
-            );
+      case 4:
+        return (
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Signatures du contrat
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Veuillez signer dans les zones prévues à cet effet. Les signatures seront incluses dans le contrat final.
+            </Typography>
+      
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <SignatureCanvas
+                  label="Signature du locataire"
+                  onSignatureCapture={(signature) => handleChange('renterSignature', signature)}
+                  error={errors.renterSignature}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <SignatureCanvas
+                  label="Signature du propriétaire"
+                  onSignatureCapture={(signature) => handleChange('ownerSignature', signature)}
+                  error={errors.ownerSignature}
+                />
+              </Grid>
+            </Grid>
+      
+            <Box sx={{ mt: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+              <Typography variant="h6" gutterBottom>
+                Résumé du contrat
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                En signant ce contrat, les deux parties s'engagent à respecter les conditions suivantes :
+              </Typography>
+              <ul>
+                <li>Location du {formData.startDate && format(formData.startDate, 'dd/MM/yyyy')} au {formData.endDate && format(formData.endDate, 'dd/MM/yyyy')}</li>
+                <li>Montant total de la location : {formData.rentalAmount}€</li>
+                <li>Caution : {formData.deposit}€</li>
+                <li>Kilométrage autorisé : {formData.allowedMileage} km</li>
+              </ul>
+            </Box>
+          </Box>
+        );
 
       default:
         return null;
@@ -453,19 +538,23 @@ const AddContractDialog = ({ open, onClose, onSubmit, vehicles = [] }) => {
         {renderStepContent(activeStep)}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Annuler</Button>
-        {activeStep > 0 && (
-          <Button onClick={handleBack}>
+    <Button onClick={onClose}>Annuler</Button>
+    {activeStep > 0 && (
+        <Button onClick={handleBack}>
             Précédent
-          </Button>
-        )}
-        <Button 
-          variant="contained" 
-          onClick={handleNext}
-        >
-          {activeStep === steps.length - 1 ? 'Terminer' : 'Suivant'}
         </Button>
-      </DialogActions>
+    )}
+    <Button 
+        variant="contained" 
+        onClick={handleNext}
+        disabled={isSubmitting}
+    >
+        {activeStep === steps.length - 1 
+            ? (isSubmitting ? 'Création en cours...' : 'Terminer') 
+            : 'Suivant'
+        }
+    </Button>
+</DialogActions>
     </Dialog>
   );
 };

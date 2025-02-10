@@ -1,11 +1,12 @@
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import logoBase64 from '../assets/logo-base64';
 import { TERMS_AND_CONDITIONS } from '../constants/contractTerms';
+import pdfMake from 'pdfmake/build/pdfmake';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
+
 
 export const generateContractPDF = async (contractData) => {
   const formatDate = (date) => format(new Date(date), 'dd MMMM yyyy', { locale: fr });
@@ -14,19 +15,15 @@ export const generateContractPDF = async (contractData) => {
   const docDefinition = {
     pageSize: 'A4',
     pageMargins: [40, 100, 40, 60],
-
-    watermark: { 
-      text: 'LOCOTO', 
-      color: 'grey', 
-      opacity: 0.1, 
-      bold: true,
-      fontSize: 60
-    },
-
+  
     header: {
       columns: [
-        {
+        logoBase64 ? {
           image: logoBase64,
+          width: 100,
+          margin: [40, 20]
+        } : {
+          text: '',
           width: 100,
           margin: [40, 20]
         },
@@ -220,10 +217,16 @@ export const generateContractPDF = async (contractData) => {
       },
 
       {
-        ol: TERMS_AND_CONDITIONS.map(term => ({
-          text: term,
-          margin: [0, 0, 0, 5]
-        }))
+        stack: [
+          { text: TERMS_AND_CONDITIONS.title, style: 'sectionHeader', margin: [0, 0, 0, 10] },
+          ...TERMS_AND_CONDITIONS.sections.map(section => ({
+            stack: [
+              { text: section.title, bold: true, margin: [0, 10, 0, 5] },
+              { text: section.content, margin: [0, 0, 0, 10] }
+            ]
+          })),
+          { text: TERMS_AND_CONDITIONS.footer, italics: true, margin: [0, 20, 0, 0] }
+        ]
       }
     ],
 

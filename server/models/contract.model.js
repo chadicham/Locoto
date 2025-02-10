@@ -5,7 +5,7 @@ const documentSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['idCard', 'drivingLicense', 'proofOfAddress', 'vehiclePhotos', 'other']
+    enum: ['idCard', 'drivingLicense', 'vehiclePhotos', 'other']
   },
   url: {
     type: String,
@@ -93,18 +93,7 @@ const contractSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
-      },
-      country: {
-        type: String,
-        required: true,
-        trim: true,
-        default: 'France'
       }
-    },
-    drivingLicenseNumber: {
-      type: String,
-      required: true,
-      trim: true
     }
   },
   rental: {

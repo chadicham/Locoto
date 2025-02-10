@@ -28,7 +28,7 @@ class DashboardService {
 
   async getStatistics() {
     try {
-      const { data } = await axios.get('/api/dashboard/statistics');
+      const { data } = await axios.get('/dashboard/statistics');
       return {
         totalVehicles: data.totalVehicles || 0,
         activeRentals: data.activeRentals || 0,
@@ -42,7 +42,7 @@ class DashboardService {
 
   async getCurrentRentals() {
     try {
-      const { data } = await axios.get('/api/dashboard/current-rentals');
+      const { data } = await axios.get('/dashboard/current-rentals');
       return data.map(rental => ({
         id: rental._id || rental.id,
         vehicle: `${rental.vehicle.brand} ${rental.vehicle.model}`,

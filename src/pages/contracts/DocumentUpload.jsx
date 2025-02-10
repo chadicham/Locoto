@@ -99,12 +99,6 @@ const DocumentUpload = ({ onDocumentChange, documents, errors }) => {
       required: true
     },
     {
-      id: 'proofOfAddress',
-      label: 'Justificatif de domicile',
-      description: 'Document de moins de 3 mois',
-      required: true
-    },
-    {
       id: 'vehiclePhotos',
       label: 'Photos du véhicule',
       description: 'Photos de l\'état du véhicule',

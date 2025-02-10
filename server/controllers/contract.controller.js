@@ -6,309 +6,341 @@ const EmailService = require('../utils/emailService');
 const fs = require('fs').promises;
 
 exports.getContracts = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { status, startDate, endDate, vehicleId } = req.query;
+    try {
+        const userId = req.user.id;
+        const { status, startDate, endDate, vehicleId } = req.query;
 
-    const query = { owner: userId };
+        const query = { owner: userId };
 
-    if (status) {
-      query.status = status;
+        if (status) query.status = status;
+        if (startDate || endDate) {
+            query['rental.startDate'] = {};
+            if (startDate) query['rental.startDate'].$gte = new Date(startDate);
+            if (endDate) query['rental.startDate'].$lte = new Date(endDate);
+        }
+        if (vehicleId) query.vehicle = vehicleId;
+
+        const contracts = await Contract.find(query)
+            .populate('vehicle', 'brand model licensePlate')
+            .sort({ createdAt: -1 });
+
+        res.json(contracts);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des contrats:', error);
+        res.status(500).json({ error: 'Erreur lors de la récupération des contrats' });
     }
-
-    if (startDate || endDate) {
-      query['rental.startDate'] = {};
-      if (startDate) query['rental.startDate'].$gte = new Date(startDate);
-      if (endDate) query['rental.startDate'].$lte = new Date(endDate);
-    }
-
-    if (vehicleId) {
-      query.vehicle = vehicleId;
-    }
-
-    const contracts = await Contract.find(query)
-      .populate('vehicle', 'brand model licensePlate')
-      .sort({ createdAt: -1 });
-
-    res.json(contracts);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des contrats:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des contrats' });
-  }
 };
 
 exports.getContractById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
 
-    const contract = await Contract.findOne({ _id: id, owner: userId })
-      .populate('vehicle', 'brand model licensePlate images');
+        const contract = await Contract.findOne({ _id: id, owner: userId })
+            .populate('vehicle', 'brand model licensePlate images');
 
-    if (!contract) {
-      return res.status(404).json({ error: 'Contrat non trouvé' });
+        if (!contract) {
+            return res.status(404).json({ error: 'Contrat non trouvé' });
+        }
+
+        res.json(contract);
+    } catch (error) {
+        console.error('Erreur lors de la récupération du contrat:', error);
+        res.status(500).json({ error: 'Erreur lors de la récupération du contrat' });
     }
-
-    res.json(contract);
-  } catch (error) {
-    console.error('Erreur lors de la récupération du contrat:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du contrat' });
-  }
 };
 
 exports.createContract = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const contractData = JSON.parse(req.body.contractData);
-
-    // Vérification de la disponibilité du véhicule
-    const vehicle = await Vehicle.findOne({ 
-      _id: contractData.vehicle,
-      owner: userId
-    });
-
-    if (!vehicle) {
-      return res.status(404).json({ error: 'Véhicule non trouvé' });
-    }
-
-    const conflictingContract = await Contract.findOne({
-      vehicle: vehicle._id,
-      status: { $in: ['pending', 'active'] },
-      $or: [
-        {
-          'rental.startDate': { $lte: new Date(contractData.rental.endDate) },
-          'rental.endDate': { $gte: new Date(contractData.rental.startDate) }
+    try {
+        const userId = req.user.id;
+        let contractData;
+        try {
+            contractData = typeof req.body.contractData === 'string' 
+                ? JSON.parse(req.body.contractData) 
+                : req.body.contractData;
+        } catch (error) {
+            return res.status(400).json({ error: 'Format de données invalide' });
         }
-      ]
-    });
 
-    if (conflictingContract) {
-      return res.status(400).json({ error: 'Le véhicule n\'est pas disponible pour ces dates' });
+        // Vérification de l'existence d'un contrat similaire récent
+        const existingContract = await Contract.findOne({
+            owner: userId,
+            vehicle: contractData.vehicle,
+            'rental.startDate': new Date(contractData.rental.startDate),
+            'rental.endDate': new Date(contractData.rental.endDate),
+            createdAt: {
+                $gte: new Date(Date.now() - 5000) // Réduire à 5 secondes au lieu de 60
+            }
+        });
+
+        if (existingContract) {
+            return res.status(400).json({
+                error: 'Un contrat similaire vient d\'être créé'
+            });
+        }
+
+        // Recherche du véhicule
+        const vehicle = await Vehicle.findOne({ 
+            _id: contractData.vehicle,
+            owner: userId
+        });
+
+        if (!vehicle) {
+            return res.status(404).json({ error: 'Véhicule non trouvé' });
+        }
+
+        // Création et sauvegarde du contrat
+        const contractToSave = {
+            ...contractData,
+            owner: userId,
+            documents: [],
+            status: 'draft',
+            contractNumber: `CTR-${Date.now()}`,
+            rental: {
+                ...contractData.rental,
+                startDate: new Date(contractData.rental.startDate),
+                endDate: new Date(contractData.rental.endDate),
+                initialMileage: parseInt(contractData.rental.initialMileage),
+                allowedMileage: parseInt(contractData.rental.allowedMileage),
+                initialFuelLevel: parseInt(contractData.rental.initialFuelLevel || 100),
+                dailyRate: parseInt(contractData.rental.dailyRate),
+                deposit: parseInt(contractData.rental.deposit || 0),
+                totalAmount: parseInt(contractData.rental.totalAmount)
+            }
+        };
+
+        // Suppression de l'_id s'il existe
+        delete contractToSave._id;
+
+        // Création du contrat avec validation explicite
+        const contract = new Contract(contractToSave);
+        const validationError = contract.validateSync();
+        if (validationError) {
+            return res.status(400).json({
+                error: 'Données du contrat invalides',
+                details: validationError.message
+            });
+        }
+
+        try {
+            // Sauvegarde du contrat
+            const savedContract = await contract.save();
+
+            // Mise à jour du véhicule
+            await Vehicle.findByIdAndUpdate(
+                vehicle._id,
+                { currentRental: savedContract._id },
+                { new: true, runValidators: true }
+            );
+
+            // Récupération du contrat avec les données du véhicule pour le PDF
+            const populatedContract = await Contract.findById(savedContract._id)
+                .populate('vehicle', 'brand model licensePlate');
+
+            // Génération du PDF
+            let pdfGenerated = false;
+            try {
+                if (process.env.SEND_CONTRACT_EMAILS === 'true') {
+                    const pdfBuffer = await PDFGenerator.generateContractPDF(populatedContract);
+                    if (pdfBuffer) {
+                        await EmailService.sendContractEmail(populatedContract, pdfBuffer);
+                        pdfGenerated = true;
+                        console.log('PDF généré et envoyé avec succès');
+                    }
+                }
+            } catch (pdfError) {
+                console.error('Erreur lors de la génération du PDF:', pdfError);
+                // Ne pas bloquer la création du contrat si le PDF échoue
+            }
+
+            // Envoi de la réponse
+            res.status(201).json({
+                ...populatedContract.toJSON(),
+                pdfGenerated
+            });
+
+        } catch (saveError) {
+            console.error('Erreur lors de la sauvegarde:', saveError);
+            return res.status(500).json({
+                error: 'Erreur lors de la sauvegarde du contrat'
+            });
+        }
+    } catch (error) {
+        console.error('Erreur lors de la création du contrat:', error);
+        res.status(500).json({ error: 'Erreur lors de la création du contrat' });
     }
-
-    // Traitement des documents
-    const documents = [];
-    if (req.files) {
-      for (const [key, files] of Object.entries(req.files)) {
-        const documentType = key.replace('documents_', '');
-        const uploadPromises = files.map(file =>
-          cloudinary.uploader.upload(file.path, {
-            folder: `contracts/${userId}/${documentType}`,
-            resource_type: 'auto'
-          })
-        );
-
-        const uploadResults = await Promise.all(uploadPromises);
-        documents.push(...uploadResults.map(result => ({
-          type: documentType,
-          url: result.secure_url,
-          publicId: result.public_id
-        })));
-
-        // Nettoyage des fichiers temporaires
-        await Promise.all(files.map(file => fs.unlink(file.path)));
-      }
-    }
-
-    const contract = new Contract({
-      ...contractData,
-      owner: userId,
-      documents,
-      status: 'pending'
-    });
-
-    await contract.save();
-
-    // Mise à jour du statut du véhicule
-    vehicle.currentRental = contract._id;
-    await vehicle.save();
-
-    // Envoi du contrat par email
-    const pdfBuffer = await PDFGenerator.generateContractPDF(contract);
-    await EmailService.sendContractEmail(contract, pdfBuffer);
-
-    res.status(201).json(contract);
-  } catch (error) {
-    console.error('Erreur lors de la création du contrat:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du contrat' });
-  }
 };
 
 exports.updateContract = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const updateData = JSON.parse(req.body.contractData);
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const updateData = JSON.parse(req.body.contractData);
 
-    const contract = await Contract.findOne({ _id: id, owner: userId });
-    if (!contract) {
-      return res.status(404).json({ error: 'Contrat non trouvé' });
+        const contract = await Contract.findOne({ _id: id, owner: userId });
+        if (!contract) {
+            return res.status(404).json({ error: 'Contrat non trouvé' });
+        }
+
+        if (!['draft', 'pending'].includes(contract.status)) {
+            return res.status(400).json({ error: 'Ce contrat ne peut plus être modifié' });
+        }
+
+        if (req.files) {
+            for (const [key, files] of Object.entries(req.files)) {
+                const documentType = key.replace('documents_', '');
+                const uploadPromises = files.map(file =>
+                    cloudinary.uploader.upload(file.path, {
+                        folder: `contracts/${userId}/${documentType}`,
+                        resource_type: 'auto'
+                    })
+                );
+
+                const uploadResults = await Promise.all(uploadPromises);
+                const newDocuments = uploadResults.map(result => ({
+                    type: documentType,
+                    url: result.secure_url,
+                    publicId: result.public_id
+                }));
+
+                contract.documents = contract.documents.filter(doc => doc.type !== documentType);
+                contract.documents.push(...newDocuments);
+
+                await Promise.all(files.map(file => fs.unlink(file.path)));
+            }
+        }
+
+        Object.assign(contract, updateData);
+        await contract.save();
+
+        res.json(contract);
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du contrat:', error);
+        res.status(500).json({ error: 'Erreur lors de la mise à jour du contrat' });
     }
-
-    if (!['draft', 'pending'].includes(contract.status)) {
-      return res.status(400).json({ error: 'Ce contrat ne peut plus être modifié' });
-    }
-
-    // Traitement des nouveaux documents
-    if (req.files) {
-      for (const [key, files] of Object.entries(req.files)) {
-        const documentType = key.replace('documents_', '');
-        const uploadPromises = files.map(file =>
-          cloudinary.uploader.upload(file.path, {
-            folder: `contracts/${userId}/${documentType}`,
-            resource_type: 'auto'
-          })
-        );
-
-        const uploadResults = await Promise.all(uploadPromises);
-        const newDocuments = uploadResults.map(result => ({
-          type: documentType,
-          url: result.secure_url,
-          publicId: result.public_id
-        }));
-
-        contract.documents = contract.documents.filter(doc => doc.type !== documentType);
-        contract.documents.push(...newDocuments);
-
-        await Promise.all(files.map(file => fs.unlink(file.path)));
-      }
-    }
-
-    Object.assign(contract, updateData);
-    await contract.save();
-
-    res.json(contract);
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du contrat:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du contrat' });
-  }
 };
+
 
 exports.validateSignature = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const { partyType, signature } = req.body;
+      const { id } = req.params;
+      const userId = req.user.id;
+      const { partyType, signature } = req.body;
 
-    const contract = await Contract.findOne({ _id: id, owner: userId });
-    if (!contract) {
-      return res.status(404).json({ error: 'Contrat non trouvé' });
-    }
+      const contract = await Contract.findOne({ _id: id, owner: userId });
+      if (!contract) {
+          return res.status(404).json({ error: 'Contrat non trouvé' });
+      }
 
-    contract.signatures.push({
-      party: partyType,
-      signature,
-      timestamp: new Date(),
-      ipAddress: req.ip
-    });
+      contract.signatures.push({
+          party: partyType,
+          signature,
+          timestamp: new Date(),
+          ipAddress: req.ip
+      });
 
-    if (contract.signatures.length === 2) {
-      contract.status = 'active';
-    }
+      if (contract.signatures.length === 2) {
+          contract.status = 'active';
+      }
 
-    await contract.save();
+      await contract.save();
 
-    // Si le contrat est maintenant actif, envoi des notifications
-    if (contract.status === 'active') {
-      await EmailService.sendContractActivationEmails(contract);
-    }
+      if (contract.status === 'active') {
+          await EmailService.sendContractActivationEmails(contract);
+      }
 
-    res.json(contract);
+      res.json(contract);
   } catch (error) {
-    console.error('Erreur lors de la validation de la signature:', error);
-    res.status(500).json({ error: 'Erreur lors de la validation de la signature' });
+      console.error('Erreur lors de la validation de la signature:', error);
+      res.status(500).json({ error: 'Erreur lors de la validation de la signature' });
   }
 };
 
 exports.cancelContract = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const { reason } = req.body;
+      const { id } = req.params;
+      const userId = req.user.id;
+      const { reason } = req.body;
 
-    const contract = await Contract.findOne({ _id: id, owner: userId });
-    if (!contract) {
-      return res.status(404).json({ error: 'Contrat non trouvé' });
-    }
+      const contract = await Contract.findOne({ _id: id, owner: userId });
+      if (!contract) {
+          return res.status(404).json({ error: 'Contrat non trouvé' });
+      }
 
-    if (!['pending', 'active'].includes(contract.status)) {
-      return res.status(400).json({ error: 'Ce contrat ne peut pas être annulé' });
-    }
+      if (!['pending', 'active'].includes(contract.status)) {
+          return res.status(400).json({ error: 'Ce contrat ne peut pas être annulé' });
+      }
 
-    contract.status = 'cancelled';
-    contract.notes = reason;
-    await contract.save();
+      contract.status = 'cancelled';
+      contract.notes = reason;
+      await contract.save();
 
-    // Libération du véhicule
-    await Vehicle.findByIdAndUpdate(contract.vehicle, {
-      $unset: { currentRental: 1 }
-    });
+      await Vehicle.findByIdAndUpdate(contract.vehicle, {
+          $unset: { currentRental: 1 }
+      });
 
-    // Notification d'annulation
-    await EmailService.sendContractCancellationEmails(contract);
+      await EmailService.sendContractCancellationEmails(contract);
 
-    res.json(contract);
+      res.json(contract);
   } catch (error) {
-    console.error('Erreur lors de l\'annulation du contrat:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'annulation du contrat' });
+      console.error('Erreur lors de l\'annulation du contrat:', error);
+      res.status(500).json({ error: 'Erreur lors de l\'annulation du contrat' });
   }
 };
 
 exports.finalizeContract = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-    const returnDetails = req.body;
+      const { id } = req.params;
+      const userId = req.user.id;
+      const returnDetails = req.body;
 
-    const contract = await Contract.findOne({ _id: id, owner: userId });
-    if (!contract) {
-      return res.status(404).json({ error: 'Contrat non trouvé' });
-    }
+      const contract = await Contract.findOne({ _id: id, owner: userId });
+      if (!contract) {
+          return res.status(404).json({ error: 'Contrat non trouvé' });
+      }
 
-    if (contract.status !== 'active') {
-      return res.status(400).json({ error: 'Ce contrat ne peut pas être finalisé' });
-    }
+      if (contract.status !== 'active') {
+          return res.status(400).json({ error: 'Ce contrat ne peut pas être finalisé' });
+      }
 
-    contract.status = 'completed';
-    contract.returnDetails = returnDetails;
-    await contract.save();
+      contract.status = 'completed';
+      contract.returnDetails = returnDetails;
+      await contract.save();
 
-    // Mise à jour du kilométrage du véhicule
-    await Vehicle.findByIdAndUpdate(contract.vehicle, {
-      mileage: returnDetails.finalMileage,
-      $unset: { currentRental: 1 }
-    });
+      await Vehicle.findByIdAndUpdate(contract.vehicle, {
+          mileage: returnDetails.finalMileage,
+          $unset: { currentRental: 1 }
+      });
 
-    // Envoi des notifications de fin de location
-    await EmailService.sendContractCompletionEmails(contract);
+      await EmailService.sendContractCompletionEmails(contract);
 
-    res.json(contract);
+      res.json(contract);
   } catch (error) {
-    console.error('Erreur lors de la finalisation du contrat:', error);
-    res.status(500).json({ error: 'Erreur lors de la finalisation du contrat' });
+      console.error('Erreur lors de la finalisation du contrat:', error);
+      res.status(500).json({ error: 'Erreur lors de la finalisation du contrat' });
   }
 };
 
 exports.generatePDF = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
+      const { id } = req.params;
+      const userId = req.user.id;
 
-    const contract = await Contract.findOne({ _id: id, owner: userId })
-      .populate('vehicle', 'brand model licensePlate');
+      const contract = await Contract.findOne({ _id: id, owner: userId })
+          .populate('vehicle', 'brand model licensePlate');
 
-    if (!contract) {
-      return res.status(404).json({ error: 'Contrat non trouvé' });
-    }
+      if (!contract) {
+          return res.status(404).json({ error: 'Contrat non trouvé' });
+      }
 
-    const pdfBuffer = await PDFGenerator.generateContractPDF(contract);
+      const pdfBuffer = await PDFGenerator.generateContractPDF(contract);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=contrat_${contract.contractNumber}.pdf`);
-    res.send(pdfBuffer);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=contrat_${contract.contractNumber}.pdf`);
+      res.send(pdfBuffer);
   } catch (error) {
-    console.error('Erreur lors de la génération du PDF:', error);
-    res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
+      console.error('Erreur lors de la génération du PDF:', error);
+      res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
   }
 };
 
