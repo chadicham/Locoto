@@ -1,9 +1,11 @@
+const mongoose = require('mongoose');
 const Contract = require('../models/contract.model');
 const Vehicle = require('../models/vehicle.model');
 const cloudinary = require('../config/cloudinary');
 const PDFGenerator = require('../utils/pdfGenerator');
 const EmailService = require('../utils/emailService');
 const fs = require('fs').promises;
+
 
 exports.getContracts = async (req, res) => {
     try {
@@ -37,7 +39,8 @@ exports.getContractById = async (req, res) => {
         const userId = req.user.id;
 
         const contract = await Contract.findOne({ _id: id, owner: userId })
-            .populate('vehicle', 'brand model licensePlate images');
+            .populate('vehicle', 'brand model licensePlate images')
+            .populate('owner', 'firstName lastName email phoneNumber');
 
         if (!contract) {
             return res.status(404).json({ error: 'Contrat non trouvé' });
@@ -54,6 +57,7 @@ exports.createContract = async (req, res) => {
     try {
         const userId = req.user.id;
         let contractData;
+        
         try {
             contractData = typeof req.body.contractData === 'string' 
                 ? JSON.parse(req.body.contractData) 
@@ -62,21 +66,20 @@ exports.createContract = async (req, res) => {
             return res.status(400).json({ error: 'Format de données invalide' });
         }
 
-        // Vérification de l'existence d'un contrat similaire récent
+        // Vérification de l'existence d'un contrat similaire
         const existingContract = await Contract.findOne({
             owner: userId,
             vehicle: contractData.vehicle,
             'rental.startDate': new Date(contractData.rental.startDate),
             'rental.endDate': new Date(contractData.rental.endDate),
+            'renter.email': contractData.renter.email,
             createdAt: {
-                $gte: new Date(Date.now() - 5000) // Réduire à 5 secondes au lieu de 60
+                $gte: new Date(Date.now() - 60000) // Dernière minute
             }
         });
 
         if (existingContract) {
-            return res.status(400).json({
-                error: 'Un contrat similaire vient d\'être créé'
-            });
+            return res.json(existingContract);
         }
 
         // Recherche du véhicule
@@ -93,9 +96,9 @@ exports.createContract = async (req, res) => {
         const contractToSave = {
             ...contractData,
             owner: userId,
+            requestId: contractData.requestId,
             documents: [],
             status: 'draft',
-            contractNumber: `CTR-${Date.now()}`,
             rental: {
                 ...contractData.rental,
                 startDate: new Date(contractData.rental.startDate),
@@ -109,22 +112,14 @@ exports.createContract = async (req, res) => {
             }
         };
 
-        // Suppression de l'_id s'il existe
         delete contractToSave._id;
 
-        // Création du contrat avec validation explicite
-        const contract = new Contract(contractToSave);
-        const validationError = contract.validateSync();
-        if (validationError) {
-            return res.status(400).json({
-                error: 'Données du contrat invalides',
-                details: validationError.message
-            });
-        }
-
         try {
-            // Sauvegarde du contrat
+            console.log('Début de la création du contrat');
+            // Création du contrat
+            const contract = new Contract(contractToSave);
             const savedContract = await contract.save();
+            console.log('Contrat sauvegardé avec succès:', savedContract._id);
 
             // Mise à jour du véhicule
             await Vehicle.findByIdAndUpdate(
@@ -132,31 +127,54 @@ exports.createContract = async (req, res) => {
                 { currentRental: savedContract._id },
                 { new: true, runValidators: true }
             );
+            console.log('Véhicule mis à jour avec le nouveau contrat');
 
-            // Récupération du contrat avec les données du véhicule pour le PDF
+            // Récupération du contrat avec les données complètes
             const populatedContract = await Contract.findById(savedContract._id)
-                .populate('vehicle', 'brand model licensePlate');
+                .populate('vehicle', 'brand model licensePlate')
+                .populate('owner', 'firstName lastName email phoneNumber');
+            console.log('Contrat populé avec les données du véhicule et du propriétaire');
 
-            // Génération du PDF
+            // Génération du PDF et envoi de l'email
             let pdfGenerated = false;
+            let pdfError = null;
+
+            console.log('Vérification de la configuration Gmail:', {
+                sendEmails: process.env.SEND_CONTRACT_EMAILS,
+                gmailConfig: {
+                    clientId: process.env.GMAIL_CLIENT_ID ? 'Configuré' : 'Non configuré',
+                    user: process.env.GMAIL_USER,
+                    refreshToken: process.env.GMAIL_REFRESH_TOKEN ? 'Configuré' : 'Non configuré'
+                }
+            });
+
             try {
                 if (process.env.SEND_CONTRACT_EMAILS === 'true') {
+                    console.log('Début de la génération du PDF pour le contrat:', populatedContract.contractNumber);
                     const pdfBuffer = await PDFGenerator.generateContractPDF(populatedContract);
+                    
                     if (pdfBuffer) {
+                        console.log('PDF généré avec succès, taille:', pdfBuffer.length);
+                        console.log('Tentative d\'envoi de l\'email');
                         await EmailService.sendContractEmail(populatedContract, pdfBuffer);
                         pdfGenerated = true;
-                        console.log('PDF généré et envoyé avec succès');
+                        console.log('Email envoyé avec succès');
+                    } else {
+                        console.log('Aucun buffer PDF généré');
                     }
+                } else {
+                    console.log('Génération de PDF désactivée par configuration');
                 }
-            } catch (pdfError) {
-                console.error('Erreur lors de la génération du PDF:', pdfError);
-                // Ne pas bloquer la création du contrat si le PDF échoue
+            } catch (error) {
+                console.error('Erreur détaillée lors de la génération/envoi du PDF:', error);
+                pdfError = error;
             }
 
-            // Envoi de la réponse
+            console.log('Préparation de la réponse');
             res.status(201).json({
                 ...populatedContract.toJSON(),
-                pdfGenerated
+                pdfGenerated,
+                pdfError: pdfError ? pdfError.message : null
             });
 
         } catch (saveError) {
@@ -165,6 +183,7 @@ exports.createContract = async (req, res) => {
                 error: 'Erreur lors de la sauvegarde du contrat'
             });
         }
+
     } catch (error) {
         console.error('Erreur lors de la création du contrat:', error);
         res.status(500).json({ error: 'Erreur lors de la création du contrat' });

@@ -40,11 +40,16 @@ const signatureSchema = new mongoose.Schema({
 const contractSchema = new mongoose.Schema({
   contractNumber: {
     type: String,
-    required: true,
     index: {
         unique: true,
         sparse: true
     }
+    // removed required: true to allow middleware generation
+  },
+  requestId: {
+    type: String,
+    sparse: true,
+    index: true
   },
   vehicle: {
     type: mongoose.Schema.Types.ObjectId,
@@ -186,54 +191,57 @@ const contractSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Index pour améliorer les performances
-contractSchema.index({ owner: 1, status: 1 });
-contractSchema.index({ vehicle: 1, startDate: 1, endDate: 1 });
-
-
 // Middleware pour générer le numéro de contrat
 contractSchema.pre('save', async function(next) {
-  if (this.isNew) {
-    const date = new Date();
-    const year = date.getFullYear().toString().substr(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const count = await this.constructor.countDocuments({
-      owner: this.owner,
-      createdAt: {
-        $gte: new Date(date.getFullYear(), date.getMonth(), 1),
-        $lte: new Date(date.getFullYear(), date.getMonth() + 1, 0)
-      }
-    });
-    this.contractNumber = `LOC-${year}${month}-${(count + 1).toString().padStart(3, '0')}`;
-  }
-  next();
+    if (!this.contractNumber) {
+        try {
+            const date = new Date();
+            const year = date.getFullYear().toString().substr(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            
+            const count = await this.constructor.countDocuments({
+                owner: this.owner,
+                createdAt: {
+                    $gte: new Date(date.getFullYear(), date.getMonth(), 1),
+                    $lte: new Date(date.getFullYear(), date.getMonth() + 1, 0)
+                }
+            });
+
+            this.contractNumber = `LOC-${year}${month}-${(count + 1).toString().padStart(3, '0')}`;
+        } catch (error) {
+            return next(error);
+        }
+    }
+    next();
 });
 
-// Méthode pour calculer la durée de location en jours
+// Index pour améliorer les performances
+contractSchema.index({ owner: 1, status: 1 });
+contractSchema.index({ vehicle: 1, 'rental.startDate': 1, 'rental.endDate': 1 });
+
+// Méthodes et virtuals
 contractSchema.methods.getRentalDuration = function() {
-  return Math.ceil(
-    (this.rental.endDate - this.rental.startDate) / (1000 * 60 * 60 * 24)
-  );
+    return Math.ceil(
+        (this.rental.endDate - this.rental.startDate) / (1000 * 60 * 60 * 24)
+    );
 };
 
-// Méthode pour calculer le dépassement kilométrique
 contractSchema.methods.getMileageOverage = function() {
-  if (!this.returnDetails?.finalMileage || !this.rental.allowedMileage) {
-    return 0;
-  }
-  const mileageDiff = this.returnDetails.finalMileage - this.rental.initialMileage;
-  return Math.max(0, mileageDiff - this.rental.allowedMileage);
+    if (!this.returnDetails?.finalMileage || !this.rental.allowedMileage) {
+        return 0;
+    }
+    const mileageDiff = this.returnDetails.finalMileage - this.rental.initialMileage;
+    return Math.max(0, mileageDiff - this.rental.allowedMileage);
 };
 
-// Virtuel pour le statut de paiement global
 contractSchema.virtual('paymentComplete').get(function() {
-  if (!this.payment.transactions || this.payment.transactions.length === 0) {
-    return false;
-  }
-  const totalPaid = this.payment.transactions.reduce((sum, transaction) => {
-    return sum + (transaction.type === 'payment' ? transaction.amount : -transaction.amount);
-  }, 0);
-  return totalPaid >= this.rental.totalAmount;
+    if (!this.payment.transactions || this.payment.transactions.length === 0) {
+        return false;
+    }
+    const totalPaid = this.payment.transactions.reduce((sum, transaction) => {
+        return sum + (transaction.type === 'payment' ? transaction.amount : -transaction.amount);
+    }, 0);
+    return totalPaid >= this.rental.totalAmount;
 });
 
 const Contract = mongoose.model('Contract', contractSchema);

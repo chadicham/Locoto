@@ -41,24 +41,47 @@ class ContractService {
 }
 
 async createContract(contractData) {
-    try {
-        const formData = new FormData();
-        formData.append('contractData', JSON.stringify(contractData));
+  try {
+      const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const dataToSend = {
+          ...contractData,
+          requestId,
+          contractNumber: `TEMP-${requestId}`
+      };
 
-        const response = await axios.post('/contracts', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
+      const formData = new FormData();
+      formData.append('contractData', JSON.stringify(dataToSend));
 
-        return response.data;
-    } catch (error) {
-        console.error('Erreur lors de la création du contrat:', {
-            message: error.message,
-            data: error.response?.data
-        });
-        throw error;
-    }
+      try {
+          const response = await axios.post('/contracts', formData, {
+              headers: {
+                  'Content-Type': 'multipart/form-data'
+              },
+              timeout: 15000
+          });
+
+          return response.data;
+      } catch (error) {
+          // Si le contrat est créé malgré l'erreur 400, on récupère le contrat
+          if (error.response?.status === 400 && error.response?.data?.contractId) {
+              const contract = await this.getContractById(error.response.data.contractId);
+              if (contract) {
+                  return contract;
+              }
+          }
+          throw error;
+      }
+  } catch (error) {
+      // Ne pas logger l'erreur si c'est une erreur 400 avec un contractId
+      if (!(error.response?.status === 400 && error.response?.data?.contractId)) {
+          console.error('Erreur lors de la création du contrat:', {
+              message: error.message,
+              data: error.response?.data
+          });
+      }
+      throw error;
+  }
 }
   async updateContract(id, contractData) {
     try {

@@ -7,8 +7,16 @@ const vehicleRoutes = require('./vehicle.routes');
 const contractRoutes = require('./contract.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const subscriptionRoutes = require('./subscription.routes');
+const googleAuthRoutes = require('./googleAuth.routes.js');
 
-// Configuration des routes principales de l'API
+console.log('Configuration des routes...');
+
+// Configuration des routes principales de l'API avec le middleware de logging pour Google Auth
+router.use('/auth/google', (req, res, next) => {
+    console.log('Route Google Auth accédée:', req.method, req.path);
+    next();
+}, googleAuthRoutes);
+
 router.use('/auth', authRoutes);
 router.use('/vehicles', vehicleRoutes);
 router.use('/contracts', contractRoutes);

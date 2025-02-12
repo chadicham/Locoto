@@ -6,7 +6,15 @@ const compression = require('compression');
 const path = require('path');
 const routes = require('./routes');
 
+
 console.log('Initialisation de l\'application Express...');
+
+console.log('Variables d\'environnement chargées:', {
+    SEND_CONTRACT_EMAILS: process.env.SEND_CONTRACT_EMAILS,
+    EMAIL_HOST: process.env.EMAIL_HOST,
+    EMAIL_PORT: process.env.EMAIL_PORT,
+    EMAIL_USER: process.env.EMAIL_USER
+});
 
 const app = express();
 

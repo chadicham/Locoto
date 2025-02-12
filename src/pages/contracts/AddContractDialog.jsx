@@ -188,7 +188,11 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     throw new Error('Aucun véhicule sélectionné');
                 }
 
+                // Générer un requestId unique
+                const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
                 const contractData = {
+                    requestId, // Ajouter le requestId ici
                     vehicle: selectedVehicle._id,
                     renter: {
                         firstName: formData.renterName.split(' ')[0],
@@ -214,14 +218,28 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     status: 'draft'
                 };
 
-                const savedContract = await contractService.createContract(contractData);
-                
-                if (savedContract.error) {
-                    throw new Error(savedContract.error);
-                }
+                let savedContract;
+                try {
+                    savedContract = await contractService.createContract(contractData);
+                    
+                    if (savedContract.error) {
+                        throw new Error(savedContract.error);
+                    }
 
-                onSubmit(savedContract);
-                onClose();
+                    onSubmit(savedContract);
+                    onClose();
+                } catch (error) {
+                    if (error.response?.status === 400 && error.response?.data?.contractId) {
+                        // Si le contrat existe déjà, on le récupère
+                        savedContract = await contractService.getContractById(error.response.data.contractId);
+                        if (savedContract) {
+                            onSubmit(savedContract);
+                            onClose();
+                            return;
+                        }
+                    }
+                    throw error;
+                }
 
             } catch (error) {
                 console.error('Erreur lors de la création du contrat:', error);
