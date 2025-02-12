@@ -1,35 +1,6 @@
 const PDFDocument = require('pdfkit');
 
 class PDFGenerator {
-    static async processSignature(doc, signature, title) {
-        try {
-            if (signature && signature.signature) {
-                doc.fontSize(12).text(title);
-                try {
-                    const signatureData = signature.signature.split(',')[1];
-                    doc.image(Buffer.from(signatureData, 'base64'), {
-                        fit: [200, 100],
-                        align: 'left'
-                    });
-                    doc.text(`Date: ${new Date(signature.timestamp).toLocaleDateString()}`, {
-                        align: 'left'
-                    });
-                } catch (signatureError) {
-                    console.error('Erreur lors du traitement de la signature:', signatureError);
-                    doc.text('Signature non disponible');
-                }
-            } else {
-                doc.text(`${title} ________________`, { align: 'left' });
-                doc.text('Date: ________________', { align: 'left' });
-            }
-            doc.moveDown();
-        } catch (error) {
-            console.error(`Erreur lors du traitement de la signature (${title}):`, error);
-            doc.text(`${title} (Non disponible)`, { align: 'left' });
-            doc.moveDown();
-        }
-    }
-
     static async generateContractPDF(contract) {
         return new Promise((resolve, reject) => {
             try {
@@ -47,7 +18,7 @@ class PDFGenerator {
                     resolve(Buffer.concat(buffers));
                 });
 
-                // En-tête
+                // En-tête du document
                 doc.fontSize(20).text('CONTRAT DE LOCATION', { align: 'center' });
                 doc.moveDown();
                 doc.fontSize(12).text(`N° ${contract.contractNumber}`, { align: 'right' });
@@ -102,25 +73,64 @@ class PDFGenerator {
                     .text(`Montant total: ${contract.rental.totalAmount} CHF`);
                 doc.moveDown(2);
 
-                // Signatures
+                // Section des signatures
                 doc.fontSize(14).text('SIGNATURES', { underline: true });
                 doc.moveDown(2);
 
-                // Traitement des signatures
-                if (contract.signatures && contract.signatures.length > 0) {
-                    const renterSignature = contract.signatures.find(s => s.party === 'renter');
-                    PDFGenerator.processSignature(doc, renterSignature, 'Signature du locataire:');
-                    
+                // Définition des dimensions pour les signatures
+                const pageWidth = doc.page.width - 2 * 50;
+                const columnWidth = pageWidth / 2;
+                const startY = doc.y;
+
+                // Colonne de gauche - Propriétaire
+                doc.fontSize(12).text('Le propriétaire:', 50, startY);
+                if (contract.signatures && contract.signatures.find(s => s.party === 'owner')) {
                     const ownerSignature = contract.signatures.find(s => s.party === 'owner');
-                    PDFGenerator.processSignature(doc, ownerSignature, 'Signature du propriétaire:');
+                    try {
+                        const signatureData = ownerSignature.signature.split(',')[1];
+                        doc.image(Buffer.from(signatureData, 'base64'), {
+                            x: 50,
+                            y: startY + 20,
+                            fit: [columnWidth - 20, 100]
+                        });
+                        doc.text(`Date: ${new Date(ownerSignature.timestamp).toLocaleDateString()}`, 
+                            50, 
+                            startY + 130
+                        );
+                    } catch (error) {
+                        console.error('Erreur lors du traitement de la signature du propriétaire:', error);
+                        doc.text('Signature non disponible', 50, startY + 20);
+                    }
                 } else {
-                    doc.fontSize(12);
-                    doc.text('Signature du locataire: ________________', { align: 'left' });
-                    doc.text('Date: ________________', { align: 'left' });
-                    doc.moveDown(2);
-                    doc.text('Signature du propriétaire: ________________', { align: 'left' });
-                    doc.text('Date: ________________', { align: 'left' });
+                    doc.text('________________', 50, startY + 50);
+                    doc.text('Date: ________________', 50, startY + 80);
                 }
+
+                // Colonne de droite - Locataire
+                doc.fontSize(12).text('Le locataire:', 50 + columnWidth, startY);
+                if (contract.signatures && contract.signatures.find(s => s.party === 'renter')) {
+                    const renterSignature = contract.signatures.find(s => s.party === 'renter');
+                    try {
+                        const signatureData = renterSignature.signature.split(',')[1];
+                        doc.image(Buffer.from(signatureData, 'base64'), {
+                            x: 50 + columnWidth,
+                            y: startY + 20,
+                            fit: [columnWidth - 20, 100]
+                        });
+                        doc.text(`Date: ${new Date(renterSignature.timestamp).toLocaleDateString()}`, 
+                            50 + columnWidth, 
+                            startY + 130
+                        );
+                    } catch (error) {
+                        console.error('Erreur lors du traitement de la signature du locataire:', error);
+                        doc.text('Signature non disponible', 50 + columnWidth, startY + 20);
+                    }
+                } else {
+                    doc.text('________________', 50 + columnWidth, startY + 50);
+                    doc.text('Date: ________________', 50 + columnWidth, startY + 80);
+                }
+
+                doc.moveDown(8);
 
                 // Page des conditions générales
                 doc.addPage();
@@ -129,27 +139,23 @@ class PDFGenerator {
 
                 doc.fontSize(10);
 
-                // Assurance et responsabilité
+                // Articles des conditions générales
                 doc.text('Article 1 - ASSURANCE ET RESPONSABILITÉ')
                    .text('Le véhicule est assuré en Responsabilité Civile (RC) selon la loi suisse. Cette assurance couvre uniquement les dommages causés à des tiers. Tous les dommages subis par le véhicule loué sont entièrement à la charge du locataire. Le locataire est informé qu\'il peut souscrire une assurance complémentaire de son choix pour couvrir sa responsabilité concernant les dommages au véhicule.');
                 doc.moveDown();
 
-                // Utilisation du véhicule
                 doc.text('Article 2 - UTILISATION DU VÉHICULE')
                    .text('Le locataire s\'engage à utiliser le véhicule en bon père de famille et à respecter le code de la route. Le véhicule ne peut être utilisé que pour un usage privé normal et ne peut en aucun cas être sous-loué ou utilisé pour l\'apprentissage de la conduite.');
                 doc.moveDown();
 
-                // Pannes et dommages
                 doc.text('Article 3 - PANNES ET DOMMAGES')
                    .text('En cas de panne ou de dommages, le locataire doit immédiatement informer le propriétaire. Aucune réparation ne peut être effectuée sans l\'accord préalable du propriétaire. Les frais de réparation dus à une utilisation inappropriée sont à la charge du locataire.');
                 doc.moveDown();
 
-                // État du véhicule et restitution
                 doc.text('Article 4 - ÉTAT DU VÉHICULE ET RESTITUTION')
                    .text('Un état des lieux est effectué au départ et au retour. Le véhicule doit être restitué dans son état initial, avec le plein de carburant. Tout dommage constaté au retour sera à la charge du locataire.');
                 doc.moveDown();
 
-                // Paiement et caution
                 doc.text('Article 5 - PAIEMENT ET CAUTION')
                    .text(`Une caution de ${contract.rental.deposit} CHF est exigée et sera restituée après vérification de l'état du véhicule, déduction faite des éventuels dommages ou frais. Le paiement intégral de la location est dû au départ.`);
                 doc.moveDown();

@@ -108,7 +108,7 @@ class EmailService {
                     <ul>
                         <li>Date de début : ${new Date(contract.rental.startDate).toLocaleDateString()}</li>
                         <li>Date de fin : ${new Date(contract.rental.endDate).toLocaleDateString()}</li>
-                        <li>Montant total : ${contract.rental.totalAmount}€</li>
+                        <li>Montant total : ${contract.rental.totalAmount}CHF</li>
                     </ul>
                     
                     <p>Merci de votre confiance.</p>

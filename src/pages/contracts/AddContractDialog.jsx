@@ -180,7 +180,7 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
     if (validateStep()) {
         if (activeStep === steps.length - 1) {
             try {
-                setIsSubmitting(true); // Empêcher les soumissions multiples
+                setIsSubmitting(true);
 
                 const selectedVehicle = vehicles.find(v => v._id === formData.vehicleId);
                 
@@ -188,11 +188,10 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     throw new Error('Aucun véhicule sélectionné');
                 }
 
-                // Générer un requestId unique
                 const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
                 const contractData = {
-                    requestId, // Ajouter le requestId ici
+                    requestId,
                     vehicle: selectedVehicle._id,
                     renter: {
                         firstName: formData.renterName.split(' ')[0],
@@ -215,6 +214,19 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                         totalAmount: parseInt(formData.rentalAmount),
                         initialFuelLevel: 100
                     },
+                    // Ajout des signatures
+                    signatures: [
+                        {
+                            party: 'renter',
+                            signature: formData.renterSignature,
+                            timestamp: new Date()
+                        },
+                        {
+                            party: 'owner',
+                            signature: formData.ownerSignature,
+                            timestamp: new Date()
+                        }
+                    ],
                     status: 'draft'
                 };
 
@@ -230,7 +242,6 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     onClose();
                 } catch (error) {
                     if (error.response?.status === 400 && error.response?.data?.contractId) {
-                        // Si le contrat existe déjà, on le récupère
                         savedContract = await contractService.getContractById(error.response.data.contractId);
                         if (savedContract) {
                             onSubmit(savedContract);
@@ -441,7 +452,7 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                   value={formData.rentalAmount}
                   onChange={(e) => handleChange('rentalAmount', e.target.value)}
                   InputProps={{
-                    startAdornment: <InputAdornment position="start">€</InputAdornment>,
+                    startAdornment: <InputAdornment position="start">CHF</InputAdornment>,
                   }}
                   error={!!errors.rentalAmount}
                   helperText={errors.rentalAmount}
@@ -455,7 +466,7 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                   value={formData.deposit}
                   onChange={(e) => handleChange('deposit', e.target.value)}
                   InputProps={{
-                    startAdornment: <InputAdornment position="start">€</InputAdornment>,
+                    startAdornment: <InputAdornment position="start">CHF</InputAdornment>,
                   }}
                 />
               </Grid>
