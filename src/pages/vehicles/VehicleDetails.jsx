@@ -112,7 +112,7 @@ const VehicleDetails = ({ vehicle, onEdit, onDelete }) => {
             <Box sx={{ textAlign: 'center' }}>
               <Euro sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
               <Typography variant="body2" color="text.secondary">Tarif journalier</Typography>
-              <Typography variant="subtitle1" fontWeight="500">{vehicle.dailyRate}€</Typography>
+              <Typography variant="subtitle1" fontWeight="500">{vehicle.dailyRate}CHF</Typography>
             </Box>
           </Grid>
         </Grid>

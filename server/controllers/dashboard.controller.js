@@ -21,17 +21,38 @@ exports.getStatistics = async (req, res) => {
       status: { $nin: ['cancelled', 'terminated'] }
     });
 
-    // Calcul des revenus du mois
+    // Calcul amélioré des revenus du mois
     const monthlyContracts = await Contract.find({
       owner: userId,
-      startDate: { $gte: firstDayOfMonth, $lte: lastDayOfMonth },
-      status: 'completed'
+      $or: [
+        // Contrats créés ce mois-ci
+        {
+          createdAt: { 
+            $gte: firstDayOfMonth, 
+            $lte: lastDayOfMonth 
+          }
+        },
+        // Contrats actifs ce mois-ci
+        {
+          startDate: { $lte: lastDayOfMonth },
+          endDate: { $gte: firstDayOfMonth },
+          status: 'active'
+        },
+        // Contrats complétés ce mois-ci
+        {
+          status: 'completed',
+          'returnDetails.actualReturnDate': {
+            $gte: firstDayOfMonth,
+            $lte: lastDayOfMonth
+          }
+        }
+      ]
     });
 
-    const monthlyRevenue = monthlyContracts.reduce(
-      (total, contract) => total + contract.amount,
-      0
-    );
+    // Calcul du revenu total en tenant compte des montants journaliers
+    const monthlyRevenue = monthlyContracts.reduce((total, contract) => {
+      return total + (contract.rental.totalAmount || 0);
+    }, 0);
 
     res.json({
       totalVehicles,

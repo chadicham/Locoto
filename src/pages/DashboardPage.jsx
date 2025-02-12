@@ -118,18 +118,12 @@ const DashboardPage = () => {
             icon={DirectionsCar}
           />
         </Grid>
-        <Grid item xs={12} sm={4}>
-          <StatCard
-            title="Locations en cours"
-            value={dashboardData.statistics.activeRentals}
-            icon={Description}
-          />
-        </Grid>
+        
         <Grid item xs={12} sm={4}>
           <StatCard
             title="Revenus du mois"
             value={`${dashboardData.statistics.monthlyRevenue.toLocaleString('fr-FR')}`}
-            suffix="€"
+            suffix=" CHF"
             icon={AccountBalance}
           />
         </Grid>
