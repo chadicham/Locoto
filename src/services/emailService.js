@@ -21,7 +21,7 @@ export const sendContractEmail = async (contractData, pdfBuffer) => {
       <p><strong>Détails de la location :</strong></p>
       <ul>
         <li>Période : du ${new Date(contractData.startDate).toLocaleDateString()} au ${new Date(contractData.endDate).toLocaleDateString()}</li>
-        <li>Montant : ${contractData.rentalAmount}€</li>
+        <li>Montant : ${contractData.rentalAmount}CHF</li>
       </ul>
       <p>Nous vous remercions de votre confiance.</p>
       <p>Cordialement,<br>L'équipe Locoto</p>

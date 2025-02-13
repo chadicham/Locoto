@@ -34,7 +34,8 @@ router.route('/:id')
         ]),
         handleMulterError,
         contractController.updateContract
-    );
+    )
+    .delete(contractController.deleteContract);
 
 // Routes spécifiques
 router.post('/:id/sign', contractController.validateSignature);

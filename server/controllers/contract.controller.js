@@ -275,6 +275,54 @@ exports.validateSignature = async (req, res) => {
   }
 };
 
+exports.deleteContract = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const contract = await Contract.findOne({ _id: id, owner: userId });
+        
+        if (!contract) {
+            return res.status(404).json({ error: 'Contrat non trouvé' });
+        }
+
+        // Vérifier si le contrat peut être supprimé
+        if (['active', 'completed'].includes(contract.status)) {
+            return res.status(400).json({ 
+                error: 'Les contrats actifs ou terminés ne peuvent pas être supprimés' 
+            });
+        }
+
+        // Si le contrat a des documents sur Cloudinary, les supprimer
+        if (contract.documents && contract.documents.length > 0) {
+            for (const doc of contract.documents) {
+                if (doc.publicId) {
+                    await cloudinary.uploader.destroy(doc.publicId);
+                }
+            }
+        }
+
+        // Mettre à jour le véhicule si nécessaire
+        if (contract.vehicle) {
+            await Vehicle.findByIdAndUpdate(contract.vehicle, {
+                $unset: { currentRental: 1 }
+            });
+        }
+
+        // Supprimer le contrat
+        await Contract.findByIdAndDelete(id);
+
+        res.status(200).json({ 
+            status: 'success',
+            message: 'Contrat supprimé avec succès' 
+        });
+
+    } catch (error) {
+        console.error('Erreur lors de la suppression du contrat:', error);
+        res.status(500).json({ error: 'Erreur lors de la suppression du contrat' });
+    }
+};
+
 exports.cancelContract = async (req, res) => {
   try {
       const { id } = req.params;

@@ -183,7 +183,7 @@ const SubscriptionPage = () => {
                   {plan.name}
                 </Typography>
                 <Typography variant="h4" color="primary" gutterBottom>
-                  {plan.price}€
+                  {plan.price} CHF
                   <Typography component="span" variant="body2" color="text.secondary">
                     /mois
                   </Typography>

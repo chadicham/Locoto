@@ -1,4 +1,13 @@
-import { List, ListItem, ListItemText, ListItemIcon, Box, Typography, Divider } from '@mui/material';
+import { 
+  List, 
+  ListItem, 
+  ListItemText, 
+  ListItemIcon, 
+  ListItemSecondaryAction,
+  Box, 
+  Typography, 
+  Divider 
+} from '@mui/material';
 
 const MobileList = ({ 
   items, 
@@ -40,6 +49,7 @@ const MobileList = ({
               '&:active': {
                 backgroundColor: 'action.selected',
               },
+              pr: item.actions ? 8 : 2, // Ajoute de l'espace si il y a des actions
             }}
           >
             {item.icon && (
@@ -48,12 +58,39 @@ const MobileList = ({
               </ListItemIcon>
             )}
             <ListItemText
-              primary={item.primary}
-              secondary={item.secondary}
-              primaryTypographyProps={{
-                fontWeight: 500,
-              }}
+              primary={
+                <Typography variant="subtitle1" fontWeight={500}>
+                  {item.primary}
+                </Typography>
+              }
+              secondary={
+                <Box sx={{ mt: 1 }}>
+                  {item.secondaryContent}
+                  {item.status && (
+                    <Box 
+                      sx={{ 
+                        display: 'inline-block',
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        bgcolor: `${item.status.color}15`,
+                        color: item.status.color,
+                        mt: 1
+                      }}
+                    >
+                      <Typography variant="caption">
+                        {item.status.label}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              }
             />
+            {item.actions && (
+              <ListItemSecondaryAction>
+                {item.actions}
+              </ListItemSecondaryAction>
+            )}
           </ListItem>
           {index < items.length - 1 && <Divider />}
         </Box>

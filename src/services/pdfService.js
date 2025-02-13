@@ -10,7 +10,7 @@ pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
 
 export const generateContractPDF = async (contractData) => {
   const formatDate = (date) => format(new Date(date), 'dd MMMM yyyy', { locale: fr });
-  const formatCurrency = (amount) => `${amount.toLocaleString('fr-FR')}€`;
+  const formatCurrency = (amount) => `${amount.toLocaleString('fr-FR')}CHF`;
 
   const docDefinition = {
     pageSize: 'A4',

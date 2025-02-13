@@ -1,16 +1,16 @@
-import axios from 'axios';
+import api from './axiosConfig';
 import { format } from 'date-fns';
 
 class RentalService {
   async fetchRentals(vehicleId = null) {
     try {
       const url = vehicleId 
-        ? `/api/rentals?vehicleId=${vehicleId}`
-        : '/api/rentals';
+        ? `/rentals?vehicleId=${vehicleId}`
+        : '/rentals';
         
-      const { data } = await axios.get(url);
+      const response = await api.get(url);
       
-      return data.map(rental => ({
+      return response.data.map(rental => ({
         id: rental.id,
         title: `Location - ${rental.vehicle.brand} ${rental.vehicle.model}`,
         vehicleId: rental.vehicle.id,
@@ -28,13 +28,13 @@ class RentalService {
 
   async checkAvailability(vehicleId, startDate, endDate) {
     try {
-      const { data } = await axios.post('/api/rentals/check-availability', {
+      const response = await api.post('/rentals/check-availability', {
         vehicleId,
         startDate,
         endDate
       });
       
-      return data.available;
+      return response.data.available;
     } catch (error) {
       console.error('Erreur lors de la vérification de disponibilité:', error);
       throw error;
@@ -43,8 +43,8 @@ class RentalService {
 
   async getRentalDetails(rentalId) {
     try {
-      const { data } = await axios.get(`/api/rentals/${rentalId}`);
-      return data;
+      const response = await api.get(`/rentals/${rentalId}`);
+      return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération des détails de location:', error);
       throw error;

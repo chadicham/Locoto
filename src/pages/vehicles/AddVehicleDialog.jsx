@@ -369,7 +369,7 @@ const AddVehicleDialog = ({ open, onClose, onSuccess }) => {
                   required
                   fullWidth
                   InputProps={{
-                    startAdornment: <Typography variant="body2">€</Typography>
+                    startAdornment: <Typography variant="body2">CHF</Typography>
                   }}
                 />
               </Grid>

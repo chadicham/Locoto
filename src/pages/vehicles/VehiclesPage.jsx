@@ -116,7 +116,7 @@ const VehiclesPage = () => {
           size="small"
         />
         <Typography variant="h6" color="primary">
-          {vehicle.dailyRate}CHF/jour
+          {vehicle.dailyRate} CHF/jour
         </Typography>
       </Box>
     </Card>

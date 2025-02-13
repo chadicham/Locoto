@@ -53,7 +53,7 @@ import {
         <DialogContent>
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" gutterBottom>
-              {plan.name} - {plan.price}€/mois
+              {plan.name} - {plan.price}CHF/mois
             </Typography>
   
             <Typography variant="body2" color="text.secondary" paragraph>
