@@ -5,25 +5,47 @@ class RentalService {
   async fetchRentals(vehicleId = null) {
     try {
       const url = vehicleId 
-        ? `/rentals?vehicleId=${vehicleId}`
-        : '/rentals';
+        ? `/contracts?vehicleId=${vehicleId}`
+        : '/contracts';
         
-      const response = await api.get(url);
+      const { data } = await api.get(url);
       
-      return response.data.map(rental => ({
-        id: rental.id,
-        title: `Location - ${rental.vehicle.brand} ${rental.vehicle.model}`,
-        vehicleId: rental.vehicle.id,
-        start: new Date(rental.startDate),
-        end: new Date(rental.endDate),
-        renterName: rental.renterName,
-        status: rental.status,
-        rentalDetails: rental
+      // Formater les données pour le calendrier
+      return data.map(contract => ({
+        id: contract._id,
+        title: `${contract.vehicle.brand} ${contract.vehicle.model}`,
+        vehicleId: contract.vehicle._id,
+        start: new Date(contract.rental.startDate),
+        end: new Date(contract.rental.endDate),
+        renterName: `${contract.renter.firstName} ${contract.renter.lastName}`,
+        status: this.getContractStatus(contract),
+        rentalDetails: contract
       }));
     } catch (error) {
       console.error('Erreur lors de la récupération des locations:', error);
       throw error;
     }
+  }
+
+  async getContractById(id) {
+    try {
+      const { data } = await api.get(`/contracts/${id}`);
+      return data;
+    } catch (error) {
+      console.error('Erreur lors de la récupération du contrat:', error);
+      throw error;
+    }
+  }
+  
+  // Méthode helper pour déterminer le statut
+  getContractStatus(contract) {
+    const now = new Date();
+    const startDate = new Date(contract.rental.startDate);
+    const endDate = new Date(contract.rental.endDate);
+    
+    if (now > endDate) return 'completed';
+    if (now < startDate) return 'pending';
+    return 'inProgress';
   }
 
   async checkAvailability(vehicleId, startDate, endDate) {
