@@ -1,3 +1,4 @@
+// src/services/axiosConfig.js
 import axios from 'axios';
 
 const api = axios.create({
@@ -6,6 +7,15 @@ const api = axios.create({
     'Content-Type': 'application/json'
   },
   withCredentials: true
+});
+
+// Ajout de l'intercepteur pour le token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // Intercepteur pour les erreurs

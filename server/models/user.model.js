@@ -93,6 +93,19 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+// Après la méthode comparePassword dans le schéma
+userSchema.methods.generateAuthToken = function() {
+  const jwt = require('jsonwebtoken');
+  return jwt.sign(
+    { 
+      id: this._id,
+      role: this.role 
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+};
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;

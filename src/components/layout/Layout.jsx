@@ -12,7 +12,14 @@ const Layout = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh',
+        backgroundColor: 'background.default' 
+      }}
+    >
       <CssBaseline />
       
       <Header onMenuClick={() => setIsDrawerOpen(true)} />
@@ -22,10 +29,13 @@ const Layout = () => {
         sx={{
           flexGrow: 1,
           p: 2,
-          pb: isMobile ? 7 : 2, // Espace pour la navigation du bas sur mobile
+          pb: isMobile ? 7 : 2,
           width: '100%',
           maxWidth: '100%',
-          overflow: 'hidden'
+          backgroundColor: 'background.default',  
+          overflowY: 'auto',  
+          height: `calc(100vh - ${theme.mixins.toolbar.minHeight}px)`,  
+          mt: `${theme.mixins.toolbar.minHeight}px`  
         }}
       >
         <Outlet />
@@ -41,7 +51,8 @@ const Layout = () => {
           display: { xs: 'block', sm: 'none' },
           '& .MuiDrawer-paper': {
             width: '85%',
-            maxWidth: 360
+            maxWidth: 360,
+            backgroundColor: 'background.paper'  
           }
         }}
       >

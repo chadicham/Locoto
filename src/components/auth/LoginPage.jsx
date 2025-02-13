@@ -72,15 +72,15 @@ const LoginPage = () => {
     setError('');
     
     try {
-      console.log('Tentative de connexion avec:', formData); // Ajout de ce log
+      console.log('Tentative de connexion avec:', formData);
       const response = await api.post('/auth/login', formData);
-      console.log('Réponse du serveur:', response.data); // Ajout de ce log
+      console.log('Réponse du serveur:', response.data);
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
         
         dispatch(setCredentials({
-          user: response.data.user,
+          user: response.data.data.user,  // Modifié ici
           token: response.data.token
         }));
         

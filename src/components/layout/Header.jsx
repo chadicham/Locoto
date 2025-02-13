@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
@@ -10,10 +12,14 @@ import {
   Box
 } from '@mui/material';
 import { Menu as MenuIcon, Notifications, KeyboardArrowDown } from '@mui/icons-material';
+import { clearCredentials } from '../../store/slices/authSlice';
 
 const Header = ({ onMenuClick }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
+  const user = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleProfileMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -21,6 +27,17 @@ const Header = ({ onMenuClick }) => {
 
   const handleNotificationsOpen = (event) => {
     setNotificationsAnchor(event.currentTarget);
+  };
+
+  const handleLogout = () => {
+    dispatch(clearCredentials());
+    setAnchorEl(null);
+    navigate('/login');
+  };
+
+  const getInitials = () => {
+    if (!user) return '';
+    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
   };
 
   return (
@@ -75,7 +92,7 @@ const Header = ({ onMenuClick }) => {
                 backgroundColor: 'primary.main'
               }}
             >
-              CM
+              {getInitials()}
             </Avatar>
             <KeyboardArrowDown sx={{ ml: 0.5 }} />
           </IconButton>
@@ -86,9 +103,15 @@ const Header = ({ onMenuClick }) => {
           open={Boolean(anchorEl)}
           onClose={() => setAnchorEl(null)}
         >
-          <MenuItem onClick={() => setAnchorEl(null)}>Mon profil</MenuItem>
-          <MenuItem onClick={() => setAnchorEl(null)}>Paramètres</MenuItem>
-          <MenuItem onClick={() => setAnchorEl(null)}>Déconnexion</MenuItem>
+          <MenuItem onClick={() => {
+            setAnchorEl(null);
+            navigate('/profile');
+          }}>Mon profil</MenuItem>
+          <MenuItem onClick={() => {
+            setAnchorEl(null);
+            navigate('/settings');
+          }}>Paramètres</MenuItem>
+          <MenuItem onClick={handleLogout}>Déconnexion</MenuItem>
         </Menu>
 
         <Menu

@@ -16,73 +16,67 @@ const generateToken = (userId) => {
 
 exports.register = catchAsync(async (req, res) => {
     const { firstName, lastName, email, password, phoneNumber } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        throw new AppError('Un compte existe déjà avec cet email', 400);
+    
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      throw new AppError('Un utilisateur avec cet email existe déjà', 400);
     }
-
+  
     const user = await User.create({
-        firstName,
-        lastName,
-        email,
-        password,
-        phoneNumber,
-        subscription: {
-            plan: 'gratuit',
-            vehicleLimit: 1
-        }
+      firstName,
+      lastName,
+      email,
+      password,
+      phoneNumber
     });
-
-    const token = generateToken(user._id);
-
+  
+    const token = user.generateAuthToken();
+  
     res.status(201).json({
-        status: 'success',
-        token,
-        data: {
-            user: {
-                id: user._id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                subscription: user.subscription
-            }
+      status: 'success',
+      token,
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phoneNumber: user.phoneNumber,  // Ajout du numéro de téléphone
+          subscription: user.subscription
         }
+      }
     });
-});
+  });
 
-exports.login = catchAsync(async (req, res) => {
+  exports.login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
-    console.log('Tentative de connexion:', { email }); // Log de débogage
-
+  
     if (!email || !password) {
-        throw new AppError('Veuillez fournir un email et un mot de passe', 400);
+      throw new AppError('Veuillez fournir un email et un mot de passe', 400);
     }
-
+  
     const user = await User.findOne({ email }).select('+password');
-    console.log('Utilisateur trouvé:', user ? 'Oui' : 'Non'); // Log de débogage
-
     if (!user || !(await user.comparePassword(password))) {
-        throw new AppError('Email ou mot de passe incorrect', 401);
+      throw new AppError('Email ou mot de passe incorrect', 401);
     }
-
-    const token = generateToken(user._id);
-    console.log('Token généré avec succès'); // Log de débogage
-
+  
+    const token = user.generateAuthToken();
+  
     res.status(200).json({
-        status: 'success',
-        token,
-        data: {
-            user: {
-                id: user._id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                subscription: user.subscription
-            }
+      status: 'success',
+      token,
+      data: {
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phoneNumber: user.phoneNumber,  // Ajout du numéro de téléphone
+          subscription: user.subscription
         }
+      }
     });
-});
+  });
 
 exports.forgotPassword = catchAsync(async (req, res) => {
     const { email } = req.body;

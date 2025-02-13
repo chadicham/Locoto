@@ -35,19 +35,12 @@ const NotificationsPage = () => {
     {
       id: 1,
       title: "Fin de location proche",
-      message: "La location de la Renault Clio se termine dans 2 jours",
+      message: "La location du PCX se termine dans 2 jours",
       date: "2024-01-07",
       type: "contract",
       isRead: false
     },
-    {
-      id: 2,
-      title: "Paiement reçu",
-      message: "Le paiement de 350€ a été reçu pour la location de la Peugeot 208",
-      date: "2024-01-06",
-      type: "payment",
-      isRead: true
-    }
+    
   ];
 
   const handleSettingChange = (setting) => {
@@ -182,21 +175,7 @@ const NotificationsPage = () => {
                 onChange={() => handleSettingChange('contractEnd')}
               />
             </ListItem>
-            <Divider />
-            <ListItem>
-              <ListItemIcon>
-                <Payment />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Paiements"
-                secondary="Notifications pour les paiements reçus"
-              />
-              <Switch
-                edge="end"
-                checked={settings.payment}
-                onChange={() => handleSettingChange('payment')}
-              />
-            </ListItem>
+            
           </List>
         </Paper>
       )}

@@ -3,6 +3,7 @@ const router = express.Router();
 
 // Import des différentes routes
 const authRoutes = require('./auth.routes');
+const userRoutes = require('./user.routes');
 const vehicleRoutes = require('./vehicle.routes');
 const contractRoutes = require('./contract.routes');
 const dashboardRoutes = require('./dashboard.routes');
@@ -18,6 +19,7 @@ router.use('/auth/google', (req, res, next) => {
 }, googleAuthRoutes);
 
 router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
 router.use('/vehicles', vehicleRoutes);
 router.use('/contracts', contractRoutes);
 router.use('/dashboard', dashboardRoutes);

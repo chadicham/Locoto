@@ -1,3 +1,4 @@
+// src/store/slices/authSlice.js
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
@@ -17,6 +18,9 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       localStorage.setItem('token', token);
     },
+    updateUser: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+    },
     clearCredentials: (state) => {
       state.user = null;
       state.token = null;
@@ -26,5 +30,5 @@ const authSlice = createSlice({
   }
 });
 
-export const { setCredentials, clearCredentials } = authSlice.actions;
+export const { setCredentials, updateUser, clearCredentials } = authSlice.actions;
 export default authSlice.reducer;

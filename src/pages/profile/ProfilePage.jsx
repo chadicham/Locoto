@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Box,
   Typography,
@@ -8,26 +8,42 @@ import {
   Button,
   TextField,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { Edit, Save } from '@mui/icons-material';
+import { updateUserProfile } from '../../services/userService';
+import { updateUser } from '../../store/slices/authSlice';
 
 const ProfilePage = () => {
-  const user = useSelector((state) => state.auth.user) || {
-    firstName: 'John',
-    lastName: 'Bee',
-    email: 'john.doe@example.com',
-    phone: '+41 79 176 85 44'
-  };
-
+  const dispatch = useDispatch();
+  const user = useSelector((state) => {
+    console.log('État Redux actuel:', state.auth); // Log pour le débogage
+    return state.auth.user;
+  });
+  
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: ''
   });
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    console.log('Données utilisateur reçues:', user); // Log pour le débogage
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phoneNumber: user.phoneNumber || ''
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({
@@ -38,9 +54,30 @@ const ProfilePage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Ici, nous ajouterons la logique de mise à jour du profil
-    setSuccessMessage('Profil mis à jour avec succès');
-    setIsEditing(false);
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await updateUserProfile(formData);
+      dispatch(updateUser(response.data.user));
+      setSuccessMessage('Profil mis à jour avec succès');
+      setIsEditing(false);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || 
+        'Une erreur est survenue lors de la mise à jour du profil'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCloseError = () => {
+    setError('');
+  };
+
+  const handleCloseSuccess = () => {
+    setSuccessMessage('');
   };
 
   return (
@@ -60,7 +97,7 @@ const ProfilePage = () => {
               mr: 2
             }}
           >
-            {formData.firstName[0]}{formData.lastName[0]}
+            {formData.firstName?.[0]}{formData.lastName?.[0]}
           </Avatar>
           <Box>
             <Typography variant="h6">
@@ -79,16 +116,18 @@ const ProfilePage = () => {
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
-              disabled={!isEditing}
+              disabled={!isEditing || isLoading}
               fullWidth
+              required
             />
             <TextField
               label="Nom"
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
-              disabled={!isEditing}
+              disabled={!isEditing || isLoading}
               fullWidth
+              required
             />
             <TextField
               label="Email"
@@ -96,15 +135,16 @@ const ProfilePage = () => {
               type="email"
               value={formData.email}
               onChange={handleChange}
-              disabled={!isEditing}
+              disabled={!isEditing || isLoading}
               fullWidth
+              required
             />
             <TextField
               label="Téléphone"
-              name="phone"
-              value={formData.phone}
+              name="phoneNumber"
+              value={formData.phoneNumber}
               onChange={handleChange}
-              disabled={!isEditing}
+              disabled={!isEditing || isLoading}
               fullWidth
             />
           </Box>
@@ -113,11 +153,12 @@ const ProfilePage = () => {
             <Button
               type="submit"
               variant="contained"
-              startIcon={<Save />}
+              startIcon={isLoading ? <CircularProgress size={20} /> : <Save />}
               sx={{ mt: 3 }}
               fullWidth
+              disabled={isLoading}
             >
-              Enregistrer les modifications
+              {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </Button>
           ) : (
             <Button
@@ -134,11 +175,21 @@ const ProfilePage = () => {
       </Paper>
 
       <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={handleCloseError}
+      >
+        <Alert severity="error" onClose={handleCloseError}>
+          {error}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
         open={!!successMessage}
         autoHideDuration={6000}
-        onClose={() => setSuccessMessage('')}
+        onClose={handleCloseSuccess}
       >
-        <Alert severity="success" onClose={() => setSuccessMessage('')}>
+        <Alert severity="success" onClose={handleCloseSuccess}>
           {successMessage}
         </Alert>
       </Snackbar>

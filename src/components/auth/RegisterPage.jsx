@@ -37,7 +37,7 @@ const RegisterPage = () => {
  const [formData, setFormData] = useState({
    firstName: '',
    lastName: '',
-   phone: '',
+   phoneNumber: '',
    email: '',
    password: '',
    confirmPassword: ''
@@ -57,11 +57,11 @@ const RegisterPage = () => {
 
  const validateStep = () => {
    if (activeStep === 0) {
-     if (!formData.firstName || !formData.lastName || !formData.phone) {
+     if (!formData.firstName || !formData.lastName || !formData.phoneNumber) {
        setError('Veuillez remplir tous les champs obligatoires');
        return false;
      }
-     if (!formData.phone.match(/^(\+33|0)[1-9](\d{8})$/)) {
+     if (!formData.phoneNumber.match(/^(\+33|0)[1-9](\d{8})$/)) {
        setError('Numéro de téléphone invalide');
        return false;
      }
@@ -109,7 +109,7 @@ const RegisterPage = () => {
       lastName: formData.lastName,
       email: formData.email,
       password: formData.password,
-      phoneNumber: formData.phone
+      phoneNumber: formData.phoneNumber
     };
 
     console.log('Données envoyées:', userData); // Pour le débogage
@@ -206,8 +206,8 @@ const RegisterPage = () => {
              <TextField
                fullWidth
                label="Téléphone"
-               name="phone"
-               value={formData.phone}
+               name="phoneNumber"
+               value={formData.phoneNumber}
                onChange={handleChange}
                margin="normal"
                required
