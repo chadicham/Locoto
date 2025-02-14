@@ -3,14 +3,12 @@ const router = express.Router();
 const subscriptionController = require('../controllers/subscription.controller');
 const { protect } = require('../middleware/auth.middleware');
 
-// Route webhook sans authentification car elle est appelée par Stripe
-router.post('/webhook', express.raw({ type: 'application/json' }), subscriptionController.handleWebhook);
-
-// Application du middleware d'authentification pour les autres routes
+// Middleware d'authentification pour toutes les routes sauf webhook
 router.use(protect);
 
-// Routes nécessitant une authentification
+// Routes protégées
 router.post('/create-session', subscriptionController.createSubscriptionSession);
 router.get('/current', subscriptionController.getCurrentSubscription);
+router.get('/check-session', subscriptionController.checkSession);
 
 module.exports = router;

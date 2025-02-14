@@ -147,20 +147,11 @@ const ContractsPage = () => {
        items={contracts.map(contract => ({
          id: contract.id,
          primary: `${contract.vehicle.brand} ${contract.vehicle.model}`,
-         secondaryContent: (
-          <>
-          <Typography variant="body2" color="text.secondary">
-            {contract.renter.firstName} {contract.renter.lastName}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Kilométrage initial: {contract.rental.initialMileage} km • Kilométrage autorisé: {contract.rental.allowedMileage} km
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {format(new Date(contract.rental.startDate), 'dd/MM/yyyy')} - {format(new Date(contract.rental.endDate), 'dd/MM/yyyy')}
-            {' • '}{contract.rental.totalAmount.toLocaleString('fr-FR')} CHF
-          </Typography>
-        </>
-         ),
+         secondaryContent: [
+          `${contract.renter.firstName} ${contract.renter.lastName}`,
+          `Kilométrage initial: ${contract.rental.initialMileage} km • Kilométrage autorisé: ${contract.rental.allowedMileage} km`,
+          `${format(new Date(contract.rental.startDate), 'dd/MM/yyyy')} - ${format(new Date(contract.rental.endDate), 'dd/MM/yyyy')} • ${contract.rental.totalAmount.toLocaleString('fr-FR')} CHF`
+        ],
          status: {
            label: getContractStatus(contract),
            color: getStatusColor(getContractStatus(contract))

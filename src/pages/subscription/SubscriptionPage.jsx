@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -65,16 +66,23 @@ const plans = [
 ];
 
 const SubscriptionPage = () => {
+  const location = useLocation();
   const [currentPlan, setCurrentPlan] = useState('free');
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
+    if (location.state?.success) {
+      setSuccessMessage('Votre abonnement a été mis à jour avec succès !');
+      // Nettoyer le state pour éviter de montrer le message à nouveau lors des rafraîchissements
+      window.history.replaceState({}, document.title);
+    }
     loadSubscription();
-  }, []);
+  }, [location]);
 
   const loadSubscription = async () => {
     try {
@@ -120,38 +128,45 @@ const SubscriptionPage = () => {
         Abonnement
       </Typography>
 
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
+        </Alert>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-  <Paper sx={{ p: 3, mb: 4 }}>
-    <Typography variant="subtitle1" sx={{ mb: 1 }}>
-      Forfait actuel
-    </Typography>
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div>
-        <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
-          {plans.find(p => p.id === currentPlan)?.name || 'Gratuit'}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          Forfait actuel
         </Typography>
-        {subscription && (
-          <Typography variant="body2" color="text.secondary">
-            Prochain renouvellement : {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-          </Typography>
-        )}
-      </div>
-      {currentPlan !== 'free' && (
-        <Button 
-          color="error" 
-          variant="outlined" 
-          onClick={() => setShowCancelDialog(true)}
-        >
-          Annuler l'abonnement
-        </Button>
-      )}
-    </Box>
-  </Paper>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+              {plans.find(p => p.id === currentPlan)?.name || 'Gratuit'}
+            </Typography>
+            {subscription && (
+              <Typography variant="body2" color="text.secondary">
+                Prochain renouvellement : {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+              </Typography>
+            )}
+          </div>
+          {currentPlan !== 'free' && (
+            <Button 
+              color="error" 
+              variant="outlined" 
+              onClick={() => setShowCancelDialog(true)}
+            >
+              Annuler l'abonnement
+            </Button>
+          )}
+        </Box>
+      </Paper>
+
       <Grid container spacing={3}>
         {plans.map((plan) => (
           <Grid item xs={12} md={4} key={plan.id}>
@@ -229,7 +244,7 @@ const SubscriptionPage = () => {
         onClose={() => setShowCancelDialog(false)}
         currentPlan={plans.find(p => p.id === currentPlan)?.name}
         onSuccess={() => {
-          loadSubscription(); // Recharger les informations d'abonnement
+          loadSubscription();
           setShowCancelDialog(false);
         }}
       />

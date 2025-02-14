@@ -1,3 +1,4 @@
+import React from 'react';
 import { 
   List, 
   ListItem, 
@@ -64,8 +65,20 @@ const MobileList = ({
                 </Typography>
               }
               secondary={
-                <Box sx={{ mt: 1 }}>
-                  {item.secondaryContent}
+                <>
+                  {Array.isArray(item.secondaryContent) 
+                    ? item.secondaryContent.map((content, idx) => (
+                        <Typography 
+                          key={idx} 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ display: 'block', mb: 0.5 }}
+                        >
+                          {content}
+                        </Typography>
+                      ))
+                    : item.secondaryContent
+                  }
                   {item.status && (
                     <Box 
                       sx={{ 
@@ -83,7 +96,7 @@ const MobileList = ({
                       </Typography>
                     </Box>
                   )}
-                </Box>
+                </>
               }
             />
             {item.actions && (

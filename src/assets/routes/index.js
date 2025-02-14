@@ -7,6 +7,7 @@ import Profile from '../pages/Profile';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import ProtectedRoute from './ProtectedRoute';
+import SuccessPage from '../pages/subscription/SuccessPage'; // Assurez-vous que le chemin d'importation est correct
 
 const AppRoutes = () => {
   return (
@@ -47,6 +48,15 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+        {/* Ajout de la route de succès pour Stripe */}
+        <Route
+          path="/subscription/success"
+          element={
+            <ProtectedRoute>
+              <SuccessPage />
             </ProtectedRoute>
           }
         />

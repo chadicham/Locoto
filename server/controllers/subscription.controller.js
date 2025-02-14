@@ -18,9 +18,16 @@ exports.createSubscriptionSession = async (req, res) => {
         quantity: 1,
       }],
       success_url: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`,
+      cancel_url: `${process.env.FRONTEND_URL}/subscription`,
       metadata: {
-        userId: user.id
+        userId: user.id,
+        planId: planId
+      },
+      subscription_data: {
+        metadata: {
+          userId: user.id,
+          planId: planId
+        }
       }
     });
 
@@ -81,6 +88,12 @@ exports.handleWebhook = async (req, res) => {
     );
 
     switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        // Récupérer l'abonnement créé
+        const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        await handleSubscriptionChange(subscription);
+        break;
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionChange(event.data.object);
@@ -100,6 +113,32 @@ exports.handleWebhook = async (req, res) => {
   } catch (error) {
     console.error('Erreur webhook:', error);
     res.status(400).json({ error: error.message });
+  }
+};
+
+exports.checkSession = async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    
+    if (session.payment_status === 'paid') {
+      // Si le paiement est réussi, on renvoie les détails du plan
+      const subscription = await stripe.subscriptions.retrieve(session.subscription);
+      res.json({
+        success: true,
+        planId: getPlanIdFromStripePrice(subscription.items.data[0].price.id),
+        status: subscription.status,
+        currentPeriodEnd: subscription.current_period_end * 1000
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Payment not completed'
+      });
+    }
+  } catch (error) {
+    console.error('Erreur vérification session:', error);
+    res.status(500).json({ error: 'Erreur lors de la vérification de la session' });
   }
 };
 
