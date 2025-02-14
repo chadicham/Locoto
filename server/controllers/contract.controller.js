@@ -389,26 +389,27 @@ exports.finalizeContract = async (req, res) => {
 };
 
 exports.generatePDF = async (req, res) => {
-  try {
+    try {
       const { id } = req.params;
       const userId = req.user.id;
-
+  
       const contract = await Contract.findOne({ _id: id, owner: userId })
-          .populate('vehicle', 'brand model licensePlate');
-
+        .populate('vehicle', 'brand model licensePlate')
+        .populate('owner', 'firstName lastName email phoneNumber'); // Ajout de cette ligne
+  
       if (!contract) {
-          return res.status(404).json({ error: 'Contrat non trouvé' });
+        return res.status(404).json({ error: 'Contrat non trouvé' });
       }
-
+  
       const pdfBuffer = await PDFGenerator.generateContractPDF(contract);
-
+  
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=contrat_${contract.contractNumber}.pdf`);
       res.send(pdfBuffer);
-  } catch (error) {
+    } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error);
       res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
-  }
-};
+    }
+  };
 
 module.exports = exports;

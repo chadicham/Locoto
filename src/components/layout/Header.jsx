@@ -9,7 +9,9 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  Box
+  Box,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { Menu as MenuIcon, Notifications, KeyboardArrowDown } from '@mui/icons-material';
 import { clearCredentials } from '../../store/slices/authSlice';
@@ -20,6 +22,8 @@ const Header = ({ onMenuClick }) => {
   const user = useSelector((state) => state.auth.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleProfileMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -51,15 +55,17 @@ const Header = ({ onMenuClick }) => {
       elevation={1}
     >
       <Toolbar>
-        <IconButton
-          edge="start"
-          color="inherit"
-          aria-label="menu"
-          onClick={onMenuClick}
-          sx={{ mr: 2 }}
-        >
-          <MenuIcon />
-        </IconButton>
+        {isMobile && (
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="menu"
+            onClick={onMenuClick}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
 
         <Typography
           variant="h6"
@@ -67,7 +73,8 @@ const Header = ({ onMenuClick }) => {
           sx={{ 
             flexGrow: 1,
             fontWeight: 600,
-            fontSize: { xs: '1.125rem', sm: '1.25rem' }
+            fontSize: { xs: '1.125rem', sm: '1.25rem' },
+            ml: !isMobile ? 2 : 0 // Ajoute une marge à gauche en mode desktop
           }}
         >
           Locoto
