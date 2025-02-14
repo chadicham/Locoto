@@ -19,7 +19,10 @@ import {
   CreditCard,
   Notifications,
   Help,
-  ExitToApp
+  ExitToApp,
+  Dashboard,
+  DirectionsCar,
+  Description
 } from '@mui/icons-material';
 import { clearCredentials } from '../../store/slices/authSlice';
 import { useState } from 'react';
@@ -31,18 +34,7 @@ const DrawerMenu = ({ onClose }) => {
 
   const handleNavigation = (path) => {
     navigate(path);
-    onClose();
-  };
-
-  const handleProfileClick = () => handleNavigation('/profile');
-
-  const handleSubscriptionClick = () => handleNavigation('/subscription');
-
-  const handleNotificationsClick = () => handleNavigation('/notifications');
-
-  const handleSupportClick = () => {
-    window.open('mailto:support@locoto.com', '_blank');
-    onClose();
+    if (onClose) onClose();
   };
 
   const handleLogoutClick = () => {
@@ -53,7 +45,12 @@ const DrawerMenu = ({ onClose }) => {
     dispatch(clearCredentials());
     setLogoutDialogOpen(false);
     navigate('/login');
-    onClose();
+    if (onClose) onClose();
+  };
+
+  const handleSupportClick = () => {
+    window.open('mailto:support@locoto.com', '_blank');
+    if (onClose) onClose();
   };
 
   return (
@@ -67,8 +64,44 @@ const DrawerMenu = ({ onClose }) => {
 
         <Divider />
 
+        {/* Nouvelles options de navigation principales */}
         <List>
-          <ListItem button onClick={handleProfileClick}>
+          <ListItem button onClick={() => handleNavigation('/')}>
+            <ListItemIcon>
+              <Dashboard />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Dashboard" 
+              secondary="Tableau de bord"
+            />
+          </ListItem>
+
+          <ListItem button onClick={() => handleNavigation('/vehicles')}>
+            <ListItemIcon>
+              <DirectionsCar />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Véhicules" 
+              secondary="Gestion des véhicules"
+            />
+          </ListItem>
+
+          <ListItem button onClick={() => handleNavigation('/contracts')}>
+            <ListItemIcon>
+              <Description />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Contrats" 
+              secondary="Gestion des contrats"
+            />
+          </ListItem>
+        </List>
+
+        <Divider />
+
+        {/* Options de compte existantes */}
+        <List>
+          <ListItem button onClick={() => handleNavigation('/profile')}>
             <ListItemIcon>
               <AccountCircle />
             </ListItemIcon>
@@ -78,7 +111,7 @@ const DrawerMenu = ({ onClose }) => {
             />
           </ListItem>
 
-          <ListItem button onClick={handleSubscriptionClick}>
+          <ListItem button onClick={() => handleNavigation('/subscription')}>
             <ListItemIcon>
               <CreditCard />
             </ListItemIcon>
@@ -88,7 +121,7 @@ const DrawerMenu = ({ onClose }) => {
             />
           </ListItem>
 
-          <ListItem button onClick={handleNotificationsClick}>
+          <ListItem button onClick={() => handleNavigation('/notifications')}>
             <ListItemIcon>
               <Notifications />
             </ListItemIcon>
@@ -101,6 +134,7 @@ const DrawerMenu = ({ onClose }) => {
 
         <Divider />
 
+        {/* Options de support et déconnexion */}
         <List>
           <ListItem button onClick={handleSupportClick}>
             <ListItemIcon>

@@ -10,24 +10,40 @@ const Layout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const drawerWidth = 240;
 
   return (
-    <Box sx={{ 
-      display: 'flex',
-      minHeight: '100vh',
-      width: '100%'
-    }}>
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh',
+        backgroundColor: 'background.default' 
+      }}
+    >
       <CssBaseline />
       
-      <Header 
-        onMenuClick={() => setIsDrawerOpen(true)} 
-        showMenuIcon={isMobile}
-      />
+      <Header onMenuClick={() => setIsDrawerOpen(true)} />
       
-      {/* Drawer mobile */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 2,
+          pb: isMobile ? 7 : 2,
+          width: '100%',
+          maxWidth: '100%',
+          backgroundColor: 'background.default',  
+          overflowY: 'auto',  
+          height: `calc(100vh - ${theme.mixins.toolbar.minHeight}px)`,  
+          mt: `${theme.mixins.toolbar.minHeight}px`  
+        }}
+      >
+        <Outlet />
+      </Box>
+
+      {isMobile && <BottomNavigation />}
+
       <Drawer
-        variant="temporary"
         anchor="left"
         open={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
@@ -36,64 +52,12 @@ const Layout = () => {
           '& .MuiDrawer-paper': {
             width: '85%',
             maxWidth: 360,
-            backgroundColor: 'background.paper',
-            borderRight: '1px solid',
-            borderColor: 'divider'
+            backgroundColor: 'background.paper'  
           }
         }}
       >
-        <DrawerMenu onClose={() => setIsDrawerOpen(false)} isPermanent={false} />
+        <DrawerMenu onClose={() => setIsDrawerOpen(false)} />
       </Drawer>
-
-      {/* Drawer tablette/desktop */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          display: { xs: 'none', sm: 'block' },
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            borderRight: '1px solid',
-            borderColor: 'divider',
-            backgroundColor: 'background.paper',
-            mt: `${theme.mixins.toolbar.minHeight}px`,
-            height: `calc(100vh - ${theme.mixins.toolbar.minHeight}px)`
-          }
-        }}
-      >
-        <DrawerMenu isPermanent={true} />
-      </Drawer>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          display: 'flex', // Ajout
-          flexDirection: 'column', // Ajout
-          width: '100%', // Modification
-          ml: { sm: `${drawerWidth}px` },
-          mt: `${theme.mixins.toolbar.minHeight}px`,
-          height: `calc(100vh - ${theme.mixins.toolbar.minHeight}px)`,
-          overflow: 'auto',
-          backgroundColor: 'background.default'
-        }}
-      >
-        <Box sx={{
-          p: { xs: 2, sm: 3 },
-          width: '100%', // Ajout
-          maxWidth: '1200px',
-          margin: '0 auto',
-          minHeight: `calc(100vh - ${theme.mixins.toolbar.minHeight}px - ${isMobile ? '56px' : '0px'})`,
-          pb: isMobile ? 7 : 3,
-          flexGrow: 1 // Ajout
-        }}>
-          <Outlet />
-        </Box>
-      </Box>
-
-      {isMobile && <BottomNavigation />}
     </Box>
   );
 };
