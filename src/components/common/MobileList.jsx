@@ -12,26 +12,18 @@ import {
 const MobileList = ({ 
   items, 
   onItemClick,
-  emptyMessage = "Aucun élément à afficher",
-  maxWidth
+  emptyMessage = "Aucun élément à afficher" 
 }) => {
   if (!items?.length) {
     return (
       <Box 
         sx={{ 
-          py: { xs: 4, sm: 6 },
+          py: 4, 
           textAlign: 'center',
-          color: 'text.secondary',
-          maxWidth: maxWidth || { sm: '600px', md: '800px' },
-          margin: '0 auto'
+          color: 'text.secondary'
         }}
       >
-        <Typography 
-          variant="body1"
-          sx={{
-            fontSize: { xs: '1rem', sm: '1.125rem' }
-          }}
-        >
+        <Typography variant="body1">
           {emptyMessage}
         </Typography>
       </Box>
@@ -42,15 +34,9 @@ const MobileList = ({
     <List
       sx={{
         width: '100%',
-        maxWidth: maxWidth || { sm: '600px', md: '800px' },
-        margin: '0 auto',
         bgcolor: 'background.paper',
-        borderRadius: { xs: 2, sm: 3 },
+        borderRadius: 2,
         overflow: 'hidden',
-        boxShadow: { 
-          xs: 'none', 
-          sm: '0 2px 8px rgba(0,0,0,0.1)' 
-        }
       }}
     >
       {items.map((item, index) => (
@@ -59,89 +45,54 @@ const MobileList = ({
             button={!!onItemClick}
             onClick={() => onItemClick?.(item)}
             sx={{
-              py: { xs: 2, sm: 3 },
-              px: { xs: 2, sm: 3 },
-              '&:hover': {
-                backgroundColor: 'action.hover',
-              },
+              py: 2,
               '&:active': {
                 backgroundColor: 'action.selected',
               },
-              pr: item.actions ? { xs: 8, sm: 10 } : { xs: 2, sm: 3 },
-              transition: 'background-color 0.2s'
+              pr: item.actions ? 8 : 2, // Ajoute de l'espace si il y a des actions
             }}
           >
             {item.icon && (
-              <ListItemIcon sx={{ 
-                minWidth: { xs: 40, sm: 48 },
-                '& > *': {
-                  fontSize: { xs: '1.5rem', sm: '1.75rem' }
-                }
-              }}>
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 {item.icon}
               </ListItemIcon>
             )}
             <ListItemText
               primary={
-                <Typography 
-                  variant="subtitle1" 
-                  fontWeight={500}
-                  sx={{
-                    fontSize: { xs: '1rem', sm: '1.125rem' }
-                  }}
-                >
+                <Typography variant="subtitle1" fontWeight={500}>
                   {item.primary}
                 </Typography>
               }
               secondary={
-                <Typography 
-                  component="div" 
-                  variant="body2"
-                  sx={{
-                    fontSize: { xs: '0.875rem', sm: '1rem' }
-                  }}
-                >
-                  <Box sx={{ mt: { xs: 1, sm: 1.5 } }}>
-                    {item.secondaryContent}
-                    {item.status && (
-                      <Box 
-                        sx={{ 
-                          display: 'inline-block',
-                          px: { xs: 1, sm: 1.5 },
-                          py: { xs: 0.5, sm: 0.75 },
-                          borderRadius: { xs: 1, sm: 1.5 },
-                          bgcolor: `${item.status.color}15`,
-                          color: item.status.color,
-                          mt: { xs: 1, sm: 1.5 }
-                        }}
-                      >
-                        <Typography 
-                          variant="caption"
-                          sx={{
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                          }}
-                        >
-                          {item.status.label}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </Typography>
+                <Box sx={{ mt: 1 }}>
+                  {item.secondaryContent}
+                  {item.status && (
+                    <Box 
+                      sx={{ 
+                        display: 'inline-block',
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        bgcolor: `${item.status.color}15`,
+                        color: item.status.color,
+                        mt: 1
+                      }}
+                    >
+                      <Typography variant="caption">
+                        {item.status.label}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
               }
             />
             {item.actions && (
-              <ListItemSecondaryAction sx={{
-                right: { xs: 8, sm: 16 }
-              }}>
+              <ListItemSecondaryAction>
                 {item.actions}
               </ListItemSecondaryAction>
             )}
           </ListItem>
-          {index < items.length - 1 && (
-            <Divider sx={{
-              mx: { sm: 2 }
-            }} />
-          )}
+          {index < items.length - 1 && <Divider />}
         </Box>
       ))}
     </List>
