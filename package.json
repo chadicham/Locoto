@@ -12,7 +12,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.1",
+    "@mui/icons-material": "^5.15.7",  // Changé pour correspondre à material
     "@mui/material": "^5.15.7",
     "@mui/x-date-pickers": "^6.18.6",
     "@react-pdf/renderer": "^4.1.6",
