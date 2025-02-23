@@ -41,7 +41,7 @@ exports.register = catchAsync(async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
-          phoneNumber: user.phoneNumber,  // Ajout du numéro de téléphone
+          phoneNumber: user.phoneNumber, 
           subscription: user.subscription
         }
       }
@@ -50,12 +50,13 @@ exports.register = catchAsync(async (req, res) => {
 
   exports.login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
-  
-    if (!email || !password) {
-      throw new AppError('Veuillez fournir un email et un mot de passe', 400);
-    }
-  
+    
+    console.log('🔐 Login attempt for email:', email);
+    
     const user = await User.findOne({ email }).select('+password');
+    console.log('👤 User found:', !!user);
+    console.log('🗝️ Password in database:', user?.password);
+    
     if (!user || !(await user.comparePassword(password))) {
       throw new AppError('Email ou mot de passe incorrect', 401);
     }
@@ -71,7 +72,7 @@ exports.register = catchAsync(async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
-          phoneNumber: user.phoneNumber,  // Ajout du numéro de téléphone
+          phoneNumber: user.phoneNumber,  
           subscription: user.subscription
         }
       }
