@@ -1,15 +1,16 @@
 import api from '../services/axiosConfig'; 
 
 class VehicleService {
- async getVehicles() {
-   try {
-     const { data } = await api.get('/vehicles');
-     return this.formatVehiclesData(data);
-   } catch (error) {
-     console.error('Erreur lors de la récupération des véhicules:', error);
-     throw new Error('Impossible de récupérer la liste des véhicules');
-   }
- }
+  async getVehicles() {
+    try {
+      console.log('Calling vehicles endpoint...'); 
+      const { data } = await api.get('/vehicles');
+      return this.formatVehiclesData(data);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des véhicules:', error);
+      throw new Error('Impossible de récupérer la liste des véhicules');
+    }
+  }
 
  async getVehicleById(id) {
    try {
