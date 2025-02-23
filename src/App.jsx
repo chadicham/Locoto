@@ -9,6 +9,7 @@ import GlobalStyles from './styles/GlobalStyles';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
+
 function App() {
   return (
     <Provider store={store}>

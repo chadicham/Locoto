@@ -9,6 +9,7 @@ const contractRoutes = require('./contract.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const subscriptionRoutes = require('./subscription.routes');
 const googleAuthRoutes = require('./googleAuth.routes.js');
+const subscriptionController = require('../controllers/subscription.controller');
 
 console.log('Configuration des routes...');
 
@@ -18,12 +19,14 @@ router.use('/auth/google', (req, res, next) => {
     next();
 }, googleAuthRoutes);
 
+router.post('/webhooks/stripe', subscriptionController.handleWebhook);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/vehicles', vehicleRoutes);
 router.use('/contracts', contractRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/subscriptions', subscriptionRoutes);
+
 
 // Route de test pour vérifier que l'API fonctionne
 router.get('/health', (req, res) => {

@@ -26,7 +26,7 @@ import {
         setLoading(true);
         setError(null);
         await stripeService.initiateSubscription(plan.id);
-        onSuccess();
+
       } catch (err) {
         setError(err.message);
       } finally {
