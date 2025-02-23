@@ -19,13 +19,16 @@ console.log('Variables d\'environnement chargées:', {
 const app = express();
 
 // Configuration CORS
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+
 const corsOptions = {
     origin: process.env.NODE_ENV === 'development' 
         ? ['http://localhost:5173', 'http://localhost:3000']
-        : process.env.FRONTEND_URL || 'https://locoto.vercel.app', 
+        : ['https://locoto.vercel.app'], // URL en dur pour tester
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
+    optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
