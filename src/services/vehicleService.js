@@ -1,18 +1,4 @@
-import axios from 'axios';
-
-// Créer une instance axios avec la configuration de base
-const api = axios.create({
- baseURL: '/api'
-});
-
-// Ajouter un intercepteur pour inclure le token dans chaque requête
-api.interceptors.request.use((config) => {
- const token = localStorage.getItem('token');
- if (token) {
-   config.headers.Authorization = `Bearer ${token}`;
- }
- return config;
-});
+import api from '../services/axiosConfig'; 
 
 class VehicleService {
  async getVehicles() {
