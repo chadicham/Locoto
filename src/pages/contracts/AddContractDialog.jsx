@@ -27,6 +27,7 @@ import SignatureCanvas from './SignatureCanvas';
 import { generateContractPDF } from '../../services/pdfService';
 import vehicleService from '../../services/vehicleService';
 import contractService from '../../services/contractService';
+console.log('contractService importé:', contractService); // Ajoutez ce log au début du fichier
 
 const steps = [
   'Choix du véhicule',
@@ -181,6 +182,7 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
         if (activeStep === steps.length - 1) {
             try {
                 setIsSubmitting(true);
+                console.log('Début de création du contrat - Data:', contractData);
 
                 const selectedVehicle = vehicles.find(v => v._id === formData.vehicleId);
                 
@@ -232,7 +234,9 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
 
                 let savedContract;
                 try {
+                    console.log('Appel à contractService.createContract avec:', contractData);
                     savedContract = await contractService.createContract(contractData);
+                    console.log('Réponse du serveur:', savedContract);
                     
                     if (savedContract.error) {
                         throw new Error(savedContract.error);
@@ -241,19 +245,12 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     onSubmit(savedContract);
                     onClose();
                 } catch (error) {
-                    if (error.response?.status === 400 && error.response?.data?.contractId) {
-                        savedContract = await contractService.getContractById(error.response.data.contractId);
-                        if (savedContract) {
-                            onSubmit(savedContract);
-                            onClose();
-                            return;
-                        }
-                    }
+                    console.error('Erreur complète:', error);
                     throw error;
                 }
 
             } catch (error) {
-                console.error('Erreur lors de la création du contrat:', error);
+                console.error('Erreur détaillée dans handleNext:', error);
                 const errorMessage = error.response?.data?.error || error.message || 'Impossible de créer le contrat';
                 setErrors(prev => ({
                     ...prev,
