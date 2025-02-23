@@ -1,12 +1,4 @@
-import axios from 'axios';
-
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import api from '../services/axiosConfig'; 
 
 class DashboardService {
   async getDashboardData() {
@@ -28,7 +20,7 @@ class DashboardService {
 
   async getStatistics() {
     try {
-        const { data } = await axios.get('/dashboard/statistics');
+        const { data } = await api.get('/dashboard/statistics'); 
         return {
             totalVehicles: data.totalVehicles || 0,
             activeRentals: data.activeRentals || 0,
@@ -41,11 +33,11 @@ class DashboardService {
         console.error('Erreur lors de la récupération des statistiques:', error);
         throw new Error('Impossible de charger les statistiques');
     }
-}
+  }
 
-async getCurrentRentals() {
+  async getCurrentRentals() {
     try {
-        const { data } = await axios.get('/dashboard/current-rentals');
+        const { data } = await api.get('/dashboard/current-rentals'); 
         return data.map(rental => ({
             id: rental._id || rental.id,
             vehicle: `${rental.vehicle.brand} ${rental.vehicle.model}`,
@@ -64,7 +56,7 @@ async getCurrentRentals() {
         console.error('Erreur lors de la récupération des locations:', error);
         throw new Error('Impossible de charger les locations');
     }
-}
+  }
 
   getRentalStatus(startDate, endDate) {
     const now = new Date();
