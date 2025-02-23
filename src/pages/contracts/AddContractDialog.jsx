@@ -1,4 +1,7 @@
+// React et hooks
 import { useState, useEffect } from 'react';
+
+// MUI Components
 import {
   Dialog,
   DialogTitle,
@@ -20,15 +23,21 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
+// Date utils
 import { fr } from 'date-fns/locale';
 import { format } from 'date-fns';
+
+// Custom components
 import DocumentUpload from './DocumentUpload';
 import SignatureCanvas from './SignatureCanvas';
-import { generateContractPDF } from '../../services/pdfService';
+
+// Services
 import vehicleService from '../../services/vehicleService';
 import contractService from '../../services/contractService';
-console.log('contractService importé:', contractService); // Ajoutez ce log au début du fichier
+import { generateContractPDF } from '../../services/pdfService';
 
+// Constants
 const steps = [
   'Choix du véhicule',
   'Informations locataire',
@@ -182,18 +191,14 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
         if (activeStep === steps.length - 1) {
             try {
                 setIsSubmitting(true);
-                console.log('Début de création du contrat - Data:', contractData);
+                console.log('Début de création du contrat');
 
                 const selectedVehicle = vehicles.find(v => v._id === formData.vehicleId);
-                
                 if (!selectedVehicle) {
                     throw new Error('Aucun véhicule sélectionné');
                 }
 
-                const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
                 const contractData = {
-                    requestId,
                     vehicle: selectedVehicle._id,
                     renter: {
                         firstName: formData.renterName.split(' ')[0],
@@ -216,7 +221,6 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                         totalAmount: parseInt(formData.rentalAmount),
                         initialFuelLevel: 100
                     },
-                    // Ajout des signatures
                     signatures: [
                         {
                             party: 'renter',
@@ -232,11 +236,12 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     status: 'draft'
                 };
 
+                console.log('Données du contrat:', contractData);
+
                 let savedContract;
                 try {
-                    console.log('Appel à contractService.createContract avec:', contractData);
                     savedContract = await contractService.createContract(contractData);
-                    console.log('Réponse du serveur:', savedContract);
+                    console.log('Contrat sauvegardé:', savedContract);
                     
                     if (savedContract.error) {
                         throw new Error(savedContract.error);
@@ -245,16 +250,22 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                     onSubmit(savedContract);
                     onClose();
                 } catch (error) {
-                    console.error('Erreur complète:', error);
+                    if (error.response?.status === 400 && error.response?.data?.contractId) {
+                        savedContract = await contractService.getContractById(error.response.data.contractId);
+                        if (savedContract) {
+                            onSubmit(savedContract);
+                            onClose();
+                            return;
+                        }
+                    }
                     throw error;
                 }
 
             } catch (error) {
-                console.error('Erreur détaillée dans handleNext:', error);
-                const errorMessage = error.response?.data?.error || error.message || 'Impossible de créer le contrat';
+                console.error('Erreur générale:', error);
                 setErrors(prev => ({
                     ...prev,
-                    general: errorMessage
+                    general: error.message || 'Impossible de créer le contrat'
                 }));
             } finally {
                 setIsSubmitting(false);
