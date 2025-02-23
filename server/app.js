@@ -18,12 +18,14 @@ console.log('Variables d\'environnement chargées:', {
 
 const app = express();
 
-// Configuration CORS plus permissive en développement
+// Configuration CORS
 const corsOptions = {
     origin: process.env.NODE_ENV === 'development' 
         ? ['http://localhost:5173', 'http://localhost:3000']
-        : process.env.FRONTEND_URL,
-    credentials: true
+        : process.env.FRONTEND_URL || 'https://locoto.vercel.app', 
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
 };
 
 app.use(cors(corsOptions));
