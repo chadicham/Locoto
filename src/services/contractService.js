@@ -1,29 +1,25 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL;
-axios.defaults.baseURL = API_URL;
+import api from '../services/axiosConfig';
 
 class ContractService {
  async getContracts(filters = {}) {
    try {
      const queryParams = new URLSearchParams(filters).toString();
-     const { data } = await axios.get(`/contracts?${queryParams}`);
+     const { data } = await api.get(`/contracts${queryParams ? '?' + queryParams : ''}`);
      return this.formatContractsData(data);
    } catch (error) {
      console.error('Erreur lors de la récupération des contrats:', error);
      throw new Error('Impossible de récupérer la liste des contrats');
    }
  }
-
  async getContractById(id) {
-   try {
-     const { data } = await axios.get(`/contracts/${id}`);
-     return this.formatContractData(data);
-   } catch (error) {
-     console.error('Erreur lors de la récupération du contrat:', error);
-     throw new Error('Impossible de récupérer les détails du contrat');
-   }
- }
+  try {
+    const { data } = await api.get(`/contracts/${id}`);
+    return this.formatContractData(data);
+  } catch (error) {
+    console.error('Erreur lors de la récupération du contrat:', error);
+    throw new Error('Impossible de récupérer les détails du contrat');
+  }
+}
 
  async checkVehicleAvailability(vehicleId, startDate, endDate) {
    try {
