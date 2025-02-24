@@ -140,7 +140,11 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
         break;
 
       case 1:
-        if (!formData.renterName) newErrors.renterName = 'Le nom est requis';
+        if (!formData.renterName) {
+          newErrors.renterName = 'Le nom est requis';
+      } else if (formData.renterName.split(' ').length < 2) {
+          newErrors.renterName = 'Veuillez entrer le nom complet (prénom ET nom)';
+      }
         if (!formData.renterEmail) {
           newErrors.renterEmail = "L'email est requis";
         } else if (!/\S+@\S+\.\S+/.test(formData.renterEmail)) {
@@ -201,8 +205,8 @@ const AddContractDialog = ({ open, onClose, onSubmit }) => {
                 const contractData = {
                     vehicle: selectedVehicle._id,
                     renter: {
-                        firstName: formData.renterName.split(' ')[0],
-                        lastName: formData.renterName.split(' ').slice(1).join(' '),
+                      firstName: formData.renterName.split(' ')[0] || '',
+                      lastName: formData.renterName.split(' ').slice(1).join(' ') || '',
                         email: formData.renterEmail,
                         phone: formData.renterPhone,
                         address: {
