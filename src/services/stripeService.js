@@ -16,7 +16,7 @@ class StripeService {
 
   async checkSession(sessionId) {
     try {
-      const response = await fetch(`${API_URL}/subscriptions/check-session?session_id=${sessionId}`, {
+      const response = await fetch(`${API_URL}/api/subscriptions/check-session?session_id=${sessionId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -37,14 +37,14 @@ class StripeService {
     try {
       const priceId = this.getPriceIdFromPlan(planId);
       
-      const response = await fetch(`${API_URL}/subscriptions/create-session`, {
+      const response = await fetch(`${API_URL}/api/subscriptions/create-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          planId // Envoyez seulement planId, pas priceId
+          planId 
         }),
       });
   
@@ -56,7 +56,7 @@ class StripeService {
       const session = await response.json();
       const stripe = await stripePromise;
       const { error } = await stripe.redirectToCheckout({
-        sessionId: session.sessionId // Notez le changement ici : session.sessionId au lieu de session.id
+        sessionId: session.sessionId 
       });
   
       if (error) {
@@ -70,7 +70,7 @@ class StripeService {
 
   async getCurrentSubscription() {
     try {
-      const response = await fetch(`${API_URL}/subscriptions/current`, {
+      const response = await fetch(`${API_URL}/api/subscriptions/current`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -89,7 +89,7 @@ class StripeService {
 
   async cancelSubscription(data) {
     try {
-      const response = await fetch(`${API_URL}/subscriptions/cancel`, {
+      const response = await fetch(`${API_URL}/api/subscriptions/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
