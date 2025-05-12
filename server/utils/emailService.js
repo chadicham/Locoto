@@ -3,33 +3,30 @@ const { google } = require('googleapis');
 
 class EmailService {
     constructor() {
-        console.log('Initialisation EmailService avec les configurations:', {
-            clientId: process.env.GMAIL_CLIENT_ID ? 'Présent' : 'Manquant',
-            clientSecret: process.env.GMAIL_CLIENT_SECRET ? 'Présent' : 'Manquant',
-            refreshToken: process.env.GMAIL_REFRESH_TOKEN ? 'Présent' : 'Manquant',
-            user: process.env.GMAIL_USER
-        });
+        // Initialisation différée - ne rien faire dans le constructeur
+    }
 
-        this.oauth2Client = new google.auth.OAuth2(
-            process.env.GMAIL_CLIENT_ID,
-            process.env.GMAIL_CLIENT_SECRET,
-            'http://localhost:5000/api/auth/google/callback'
-        );
-
-        console.log('Configuration OAuth2 terminée');
-
-        this.oauth2Client.setCredentials({
-            refresh_token: process.env.GMAIL_REFRESH_TOKEN
-        });
-
-        console.log('Credentials définies');
+    // Initialisation du client OAuth2 seulement quand nécessaire
+    getOAuth2Client() {
+        if (!this.oauth2Client) {
+            this.oauth2Client = new google.auth.OAuth2(
+                process.env.GMAIL_CLIENT_ID,
+                process.env.GMAIL_CLIENT_SECRET,
+                'http://localhost:5000/api/auth/google/callback'
+            );
+            
+            this.oauth2Client.setCredentials({
+                refresh_token: process.env.GMAIL_REFRESH_TOKEN
+            });
+        }
+        
+        return this.oauth2Client;
     }
 
     async createTransporter() {
         try {
-            console.log('Tentative d\'obtention du token d\'accès...');
-            const accessToken = await this.oauth2Client.getAccessToken();
-            console.log('Token d\'accès obtenu');
+            const oauth2Client = this.getOAuth2Client();
+            const accessToken = await oauth2Client.getAccessToken();
 
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -44,20 +41,16 @@ class EmailService {
             });
 
             await transporter.verify();
-            console.log('Connexion au transporteur vérifiée avec succès');
-            
             return transporter;
         } catch (error) {
-            console.error('Erreur détaillée lors de la création du transporteur:', error);
+            console.error('Erreur lors de la création du transporteur:', error);
             throw error;
         }
     }
 
     async sendEmail(options) {
         try {
-            console.log('Création du transporteur pour l\'envoi d\'email...');
             const transporter = await this.createTransporter();
-            console.log('Transporteur créé avec succès');
 
             const mailOptions = {
                 from: `Locoto <${process.env.GMAIL_USER}>`,
@@ -68,19 +61,16 @@ class EmailService {
                 attachments: options.attachments
             };
 
-            console.log('Tentative d\'envoi de l\'email à:', options.email);
             const info = await transporter.sendMail(mailOptions);
-            console.log('Email envoyé avec succès:', info.messageId);
             return true;
         } catch (error) {
-            console.error('Erreur détaillée lors de l\'envoi de l\'email:', error);
+            console.error('Erreur lors de l\'envoi de l\'email:', error);
             throw new Error('Échec de l\'envoi de l\'email');
         }
     }
 
     async sendContractEmail(contract, pdfBuffer) {
         try {
-            console.log('Préparation de l\'email du contrat pour:', contract.renter.email);
             const subject = `Votre contrat de location N°${contract.contractNumber}`;
             const message = `
                 Bonjour ${contract.renter.firstName} ${contract.renter.lastName},
@@ -116,7 +106,6 @@ class EmailService {
                 </div>
             `;
 
-            console.log('Envoi de l\'email avec le PDF joint...');
             await this.sendEmail({
                 email: contract.renter.email,
                 subject,
@@ -128,7 +117,6 @@ class EmailService {
                 }]
             });
 
-            console.log('Email du contrat envoyé avec succès');
             return true;
         } catch (error) {
             console.error('Erreur lors de l\'envoi de l\'email du contrat:', error);

@@ -51,17 +51,17 @@ exports.register = catchAsync(async (req, res) => {
   exports.login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
     
-    console.log('🔐 Login attempt for email:', email);
-    
     const user = await User.findOne({ email }).select('+password');
-    console.log('👤 User found:', !!user);
-    console.log('🗝️ Password in database:', user?.password);
     
     if (!user || !(await user.comparePassword(password))) {
       throw new AppError('Email ou mot de passe incorrect', 401);
     }
   
     const token = user.generateAuthToken();
+    
+    // Mettre à jour la date de dernière connexion
+    user.lastLogin = Date.now();
+    await User.findByIdAndUpdate(user._id, { lastLogin: user.lastLogin });
   
     res.status(200).json({
       status: 'success',
