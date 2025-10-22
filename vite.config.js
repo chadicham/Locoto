@@ -23,5 +23,44 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
       '@hooks': path.resolve(__dirname, './src/hooks')
     }
-  }
+  },
+  build: {
+    // Optimisation du code splitting
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Séparer les vendors des dépendances principales
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-vendor': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          'redux-vendor': ['@reduxjs/toolkit', 'react-redux'],
+          'date-vendor': ['date-fns', 'moment', '@mui/x-date-pickers'],
+          'pdf-vendor': ['@react-pdf/renderer', 'pdfmake'],
+          'stripe-vendor': ['@stripe/stripe-js', '@stripe/react-stripe-js'],
+        },
+      },
+    },
+    // Augmenter la limite d'avertissement pour les chunks
+    chunkSizeWarningLimit: 1000,
+    // Minification optimale
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Supprimer les console.log en production
+        drop_debugger: true,
+      },
+    },
+    // Source maps pour le debug en production (optionnel)
+    sourcemap: false,
+  },
+  // Optimisation des dépendances
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@mui/material',
+      '@emotion/react',
+      '@emotion/styled',
+    ],
+  },
 })
