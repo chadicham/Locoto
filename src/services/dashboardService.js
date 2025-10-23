@@ -27,7 +27,13 @@ class DashboardService {
             monthlyRevenue: new Intl.NumberFormat('fr-CH', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
-            }).format(data.monthlyRevenue || 0)
+            }).format(data.monthlyRevenue || 0),
+            yearlyRevenue: new Intl.NumberFormat('fr-CH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(data.yearlyRevenue || 0),
+            monthlySubscriptions: data.monthlySubscriptions || 0,
+            yearlySubscriptions: data.yearlySubscriptions || 0
         };
     } catch (error) {
         console.error('Erreur lors de la récupération des statistiques:', error);

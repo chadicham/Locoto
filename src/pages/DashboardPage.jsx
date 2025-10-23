@@ -68,7 +68,10 @@ const DashboardPage = () => {
     statistics: {
       totalVehicles: 0,
       activeRentals: 0,
-      monthlyRevenue: 0
+      monthlyRevenue: 0,
+      yearlyRevenue: 0,
+      monthlySubscriptions: 0,
+      yearlySubscriptions: 0
     },
     currentRentals: []
   });
@@ -216,6 +219,33 @@ const DashboardPage = () => {
             value={`${dashboardData.statistics.monthlyRevenue.toLocaleString('fr-FR')}`}
             suffix=" CHF"
             icon={AccountBalance}
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={4}>
+          <StatCard
+            title="Abonnements du mois"
+            value={dashboardData.statistics.monthlySubscriptions}
+            icon={Description}
+          />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6}>
+          <StatCard
+            title="Revenus de l'année"
+            value={`${dashboardData.statistics.yearlyRevenue.toLocaleString('fr-FR')}`}
+            suffix=" CHF"
+            icon={AccountBalance}
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <StatCard
+            title="Abonnements de l'année"
+            value={dashboardData.statistics.yearlySubscriptions}
+            icon={Description}
           />
         </Grid>
       </Grid>

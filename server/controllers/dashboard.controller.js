@@ -1,12 +1,18 @@
 const Contract = require('../models/contract.model');
 const Vehicle = require('../models/vehicle.model');
+const User = require('../models/user.model');
+const { STRIPE_PLANS_PRICES } = require('../config/stripe.config');
 
 exports.getStatistics = async (req, res) => {
   try {
     const userId = req.user.id;
     const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    const firstDayOfYear = new Date(currentYear, 0, 1);
 
     // Récupération du nombre total de véhicules
     const totalVehicles = await Vehicle.countDocuments({ 
@@ -21,49 +27,145 @@ exports.getStatistics = async (req, res) => {
       status: { $nin: ['cancelled', 'terminated'] }
     });
 
-    // Calcul amélioré des revenus du mois
-    const monthlyContracts = await Contract.find({
-      owner: userId,
-      $or: [
-        // Contrats créés ce mois-ci
-        {
-          createdAt: { 
-            $gte: firstDayOfMonth, 
-            $lte: lastDayOfMonth 
-          }
-        },
-        // Contrats actifs ce mois-ci
-        {
-          startDate: { $lte: lastDayOfMonth },
-          endDate: { $gte: firstDayOfMonth },
-          status: 'active'
-        },
-        // Contrats complétés ce mois-ci
-        {
-          status: 'completed',
-          'returnDetails.actualReturnDate': {
-            $gte: firstDayOfMonth,
-            $lte: lastDayOfMonth
-          }
-        }
-      ]
+    // Calcul des revenus basés sur les nouveaux abonnements du mois
+    const monthlySubscriptions = await User.countDocuments({
+      'subscription.stripeSubscriptionId': { $exists: true },
+      'subscription.subscriptionStatus': 'active',
+      createdAt: { 
+        $gte: firstDayOfMonth, 
+        $lte: lastDayOfMonth 
+      }
     });
 
-    // Calcul du revenu total en tenant compte des montants journaliers
-    const monthlyRevenue = monthlyContracts.reduce((total, contract) => {
-      return total + (contract.rental.totalAmount || 0);
+    // Calcul des revenus basés sur les abonnements de l'année
+    const yearlySubscriptions = await User.countDocuments({
+      'subscription.stripeSubscriptionId': { $exists: true },
+      'subscription.subscriptionStatus': 'active',
+      createdAt: { 
+        $gte: firstDayOfYear, 
+        $lte: today 
+      }
+    });
+
+    // Récupérer tous les utilisateurs avec abonnement actif créés ce mois
+    const monthlyUsers = await User.find({
+      'subscription.stripeSubscriptionId': { $exists: true },
+      'subscription.subscriptionStatus': 'active',
+      createdAt: { 
+        $gte: firstDayOfMonth, 
+        $lte: lastDayOfMonth 
+      }
+    }).select('subscription.plan');
+
+    // Récupérer tous les utilisateurs avec abonnement actif créés cette année
+    const yearlyUsers = await User.find({
+      'subscription.stripeSubscriptionId': { $exists: true },
+      'subscription.subscriptionStatus': 'active',
+      createdAt: { 
+        $gte: firstDayOfYear, 
+        $lte: today 
+      }
+    }).select('subscription.plan');
+
+    // Calculer le revenu mensuel basé sur les plans
+    const monthlyRevenue = monthlyUsers.reduce((total, user) => {
+      const planPrice = getPlanPrice(user.subscription.plan);
+      return total + planPrice;
+    }, 0);
+
+    // Calculer le revenu annuel basé sur les plans
+    const yearlyRevenue = yearlyUsers.reduce((total, user) => {
+      const planPrice = getPlanPrice(user.subscription.plan);
+      return total + planPrice;
     }, 0);
 
     res.json({
       totalVehicles,
       activeRentals,
-      monthlyRevenue
+      monthlyRevenue,
+      yearlyRevenue,
+      monthlySubscriptions,
+      yearlySubscriptions
     });
 
   } catch (error) {
     console.error('Erreur lors de la récupération des statistiques:', error);
     res.status(500).json({ 
       error: 'Erreur lors de la récupération des statistiques du tableau de bord' 
+    });
+  }
+};
+
+// Fonction utilitaire pour obtenir le prix d'un plan
+function getPlanPrice(planName) {
+  const prices = {
+    'gratuit': 0,
+    'starter': 9.90,
+    'pro': 29.90,
+    'business': 49.90,
+    'unlimited': 99.90
+  };
+  return prices[planName] || 0;
+}
+
+// Nouvelle fonction pour obtenir les revenus mensuels détaillés
+exports.getMonthlyRevenue = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { year } = req.query;
+    const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+    const monthlyData = [];
+
+    // Pour chaque mois de l'année
+    for (let month = 0; month < 12; month++) {
+      const firstDayOfMonth = new Date(targetYear, month, 1);
+      const lastDayOfMonth = new Date(targetYear, month + 1, 0);
+
+      // Compter les abonnements créés ce mois-là
+      const monthSubscriptions = await User.countDocuments({
+        'subscription.stripeSubscriptionId': { $exists: true },
+        'subscription.subscriptionStatus': 'active',
+        createdAt: { 
+          $gte: firstDayOfMonth, 
+          $lte: lastDayOfMonth 
+        }
+      });
+
+      // Récupérer les utilisateurs avec leurs plans
+      const monthUsers = await User.find({
+        'subscription.stripeSubscriptionId': { $exists: true },
+        'subscription.subscriptionStatus': 'active',
+        createdAt: { 
+          $gte: firstDayOfMonth, 
+          $lte: lastDayOfMonth 
+        }
+      }).select('subscription.plan');
+
+      // Calculer le revenu du mois
+      const revenue = monthUsers.reduce((total, user) => {
+        return total + getPlanPrice(user.subscription.plan);
+      }, 0);
+
+      monthlyData.push({
+        month: month + 1,
+        monthName: new Date(targetYear, month).toLocaleString('fr-FR', { month: 'long' }),
+        subscriptions: monthSubscriptions,
+        revenue: revenue
+      });
+    }
+
+    res.json({
+      year: targetYear,
+      months: monthlyData,
+      totalRevenue: monthlyData.reduce((sum, m) => sum + m.revenue, 0),
+      totalSubscriptions: monthlyData.reduce((sum, m) => sum + m.subscriptions, 0)
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des revenus mensuels:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération des revenus mensuels' 
     });
   }
 };

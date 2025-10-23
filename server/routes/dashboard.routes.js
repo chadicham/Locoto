@@ -9,5 +9,6 @@ router.use(protect);
 // Configuration des routes du dashboard
 router.get('/statistics', dashboardController.getStatistics);
 router.get('/current-rentals', dashboardController.getCurrentRentals);
+router.get('/monthly-revenue', dashboardController.getMonthlyRevenue);
 
 module.exports = router;
