@@ -59,10 +59,13 @@ exports.register = catchAsync(async (req, res) => {
   
     const token = user.generateAuthToken();
     
-    // Mettre à jour la date de dernière connexion
+    // Mettre à jour la date de dernière connexion de manière asynchrone (ne pas attendre)
     user.lastLogin = Date.now();
-    await User.findByIdAndUpdate(user._id, { lastLogin: user.lastLogin });
+    User.findByIdAndUpdate(user._id, { lastLogin: user.lastLogin }).catch(err => 
+      console.error('Erreur mise à jour lastLogin:', err)
+    );
   
+    // Répondre immédiatement sans attendre la mise à jour
     res.status(200).json({
       status: 'success',
       token,

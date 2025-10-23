@@ -79,10 +79,17 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Index pour optimiser les performances
+// L'index sur email est déjà créé par l'option "unique: true" dans le schéma
+userSchema.index({ 'subscription.stripeSubscriptionId': 1 }); // Index pour abonnements
+userSchema.index({ 'subscription.subscriptionStatus': 1, createdAt: -1 }); // Index composé pour revenue
+userSchema.index({ resetPasswordToken: 1 }); // Index pour reset password
+
 // Middleware pour hacher le mot de passe avant la sauvegarde
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
+  // Utiliser 10 rounds pour un bon équilibre sécurité/performance
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();

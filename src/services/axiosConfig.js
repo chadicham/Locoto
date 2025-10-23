@@ -13,7 +13,7 @@ const api = axios.create({
     'Content-Type': 'application/json'
   },
   withCredentials: true,
-  timeout: 30000, // Timeout de 30 secondes
+  timeout: 15000, // Timeout de 15 secondes
 });
 
 // Intercepteur pour le token et le cache

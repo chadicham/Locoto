@@ -6,8 +6,11 @@ const connectDB = async () => {
         const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/locoto';
         
         const connection = await mongoose.connect(mongoURI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
+            maxPoolSize: 10, // Pool de connexions plus grand
+            minPoolSize: 2,  // Garder au moins 2 connexions ouvertes
+            serverSelectionTimeoutMS: 5000, // Timeout de sélection du serveur
+            socketTimeoutMS: 45000, // Timeout de socket
+            family: 4 // Forcer IPv4
         });
 
         console.log('✅ Connexion à MongoDB établie avec succès');
