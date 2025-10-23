@@ -51,13 +51,31 @@ exports.register = catchAsync(async (req, res) => {
   exports.login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
     
+    console.log('🔐 Tentative de connexion pour:', email);
+    
+    if (!email || !password) {
+      throw new AppError('Email et mot de passe requis', 400);
+    }
+    
     const user = await User.findOne({ email }).select('+password');
     
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user) {
+      console.log('❌ Utilisateur non trouvé:', email);
+      throw new AppError('Email ou mot de passe incorrect', 401);
+    }
+    
+    console.log('👤 Utilisateur trouvé:', user.email);
+    
+    const isPasswordValid = await user.comparePassword(password);
+    console.log('🔑 Mot de passe valide:', isPasswordValid);
+    
+    if (!isPasswordValid) {
+      console.log('❌ Mot de passe incorrect pour:', email);
       throw new AppError('Email ou mot de passe incorrect', 401);
     }
   
     const token = user.generateAuthToken();
+    console.log('✅ Token généré pour:', email);
     
     // Mettre à jour la date de dernière connexion de manière asynchrone (ne pas attendre)
     user.lastLogin = Date.now();
@@ -80,6 +98,8 @@ exports.register = catchAsync(async (req, res) => {
         }
       }
     });
+    
+    console.log('✅ Connexion réussie pour:', email);
   });
 
 exports.forgotPassword = catchAsync(async (req, res) => {

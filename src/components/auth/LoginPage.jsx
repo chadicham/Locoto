@@ -71,28 +71,66 @@ const LoginPage = () => {
     setIsLoading(true);
     setError('');
     
-    try {
-      console.log('Tentative de connexion avec:', formData);
-      const response = await api.post('/auth/login', formData);
-      console.log('Réponse du serveur:', response.data);
-      
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+    // Retry logic
+    const maxRetries = 2;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔐 Tentative ${attempt}/${maxRetries} de connexion avec:`, { email: formData.email });
         
-        dispatch(setCredentials({
-          user: response.data.data.user,  // Modifié ici
-          token: response.data.token
-        }));
+        const response = await api.post('/auth/login', formData, {
+          timeout: 10000, // 10 secondes de timeout
+          skipCache: true // Forcer pas de cache pour le login
+        });
         
-        navigate(from, { replace: true });
+        console.log('✅ Réponse du serveur:', response.data);
+        
+        if (response.data.token && response.data.data?.user) {
+          localStorage.setItem('token', response.data.token);
+          
+          dispatch(setCredentials({
+            user: response.data.data.user,
+            token: response.data.token
+          }));
+          
+          console.log('✅ Credentials stockées, navigation vers:', from);
+          
+          // Petite pause pour s'assurer que le state est mis à jour
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          navigate(from, { replace: true });
+          return; // Succès, on sort de la fonction
+        } else {
+          console.error('❌ Réponse invalide:', response.data);
+          lastError = new Error('Réponse du serveur invalide');
+        }
+      } catch (err) {
+        console.error(`❌ Erreur tentative ${attempt}:`, err);
+        lastError = err;
+        
+        // Si ce n'est pas la dernière tentative et que c'est une erreur réseau, on retry
+        if (attempt < maxRetries && (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK')) {
+          console.log(`⏳ Nouvelle tentative dans 500ms...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          continue;
+        }
+        
+        // Si c'est une erreur d'authentification (401), on ne retry pas
+        if (err.response?.status === 401) {
+          break;
+        }
       }
-    } catch (err) {
-      console.error('Erreur complète:', err);
-      console.error('Détails de l\'erreur:', err.response?.data);
-      setError(err.response?.data?.message || 'Identifiants incorrects');
-    } finally {
-      setIsLoading(false);
     }
+    
+    // Si on arrive ici, toutes les tentatives ont échoué
+    console.error('❌ Échec après', maxRetries, 'tentatives');
+    const errorMessage = lastError?.response?.data?.message || 
+                        lastError?.message || 
+                        'Erreur de connexion. Veuillez réessayer.';
+    
+    setError(errorMessage);
+    setIsLoading(false);
   };
 
   return (

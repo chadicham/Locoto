@@ -29,7 +29,12 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Vérifier le cache pour les requêtes GET
+  // Ne pas mettre en cache les requêtes POST (login, register, etc.)
+  if (config.method === 'post' || config.method === 'put' || config.method === 'delete') {
+    config.skipCache = true;
+  }
+
+  // Vérifier le cache pour les requêtes GET uniquement
   if (config.method === 'get' && !config.skipCache) {
     const cacheKey = config.url + JSON.stringify(config.params || {});
     const cached = cache.get(cacheKey);
