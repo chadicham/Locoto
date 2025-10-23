@@ -17,6 +17,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
+import Logo from '../common/Logo';
 import { setCredentials } from '../../store/slices/authSlice';
 
 const LoginPage = () => {
@@ -125,18 +126,45 @@ const LoginPage = () => {
       flexDirection: 'column', 
       justifyContent: 'center',
       p: 2,
-      bgcolor: 'background.default'
+      background: 'linear-gradient(135deg, rgb(6, 0, 16) 0%, rgb(25, 10, 40) 50%, rgb(6, 0, 16) 100%)',
+      position: 'relative',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at 20% 20%, rgba(108, 99, 255, 0.12) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(108, 99, 255, 0.08) 0%, transparent 50%)',
+        pointerEvents: 'none',
+      }
     }}>
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-          Locoto
-        </Typography>
-        <Typography color="text.secondary">
+      <Box sx={{ mb: 4, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+          <Logo variant="full" height={44} hoverGlow />
+        </Box>
+        <Typography color="text.secondary" variant="h6" sx={{ fontWeight: 400 }}>
           Connectez-vous à votre compte
         </Typography>
       </Box>
 
-      <Paper elevation={2} sx={{ p: 3, maxWidth: 400, mx: 'auto', width: '100%' }}>
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: 4, 
+          maxWidth: 440, 
+          mx: 'auto', 
+          width: '100%',
+          position: 'relative',
+          zIndex: 1,
+          background: 'rgba(15, 8, 26, 0.7)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(108, 99, 255, 0.2)',
+          borderRadius: '24px',
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+        }}
+      >
         <form onSubmit={handleSubmit}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>

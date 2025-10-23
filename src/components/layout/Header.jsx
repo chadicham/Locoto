@@ -13,6 +13,7 @@ import {
   useTheme,
   useMediaQuery
 } from '@mui/material';
+import Logo from '../common/Logo';
 import { Menu as MenuIcon, Notifications, KeyboardArrowDown } from '@mui/icons-material';
 import { clearCredentials } from '../../store/slices/authSlice';
 
@@ -49,10 +50,14 @@ const Header = ({ onMenuClick }) => {
       position="fixed" 
       sx={{ 
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: 'background.paper',
-        color: 'text.primary'
+        background: 'rgba(15, 8, 26, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        color: 'text.primary',
+        borderBottom: '1px solid rgba(108, 99, 255, 0.2)',
+        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.4)',
       }}
-      elevation={1}
+      elevation={0}
     >
       <Toolbar>
         {isMobile && (
@@ -67,42 +72,58 @@ const Header = ({ onMenuClick }) => {
           </IconButton>
         )}
 
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ 
-            flexGrow: 1,
-            fontWeight: 600,
-            fontSize: { xs: '1.125rem', sm: '1.25rem' },
-            ml: !isMobile ? 2 : 0 // Ajoute une marge à gauche en mode desktop
-          }}
-        >
-          Locoto
-        </Typography>
+        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1, ml: !isMobile ? 2 : 0 }}>
+          <Logo variant={isMobile ? 'mark' : 'full'} height={isMobile ? 28 : 32} hoverGlow />
+        </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton 
             color="inherit"
             onClick={handleNotificationsOpen}
+            sx={{
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                background: 'rgba(108, 99, 255, 0.15)',
+                transform: 'scale(1.05)',
+              }
+            }}
           >
             <Notifications />
           </IconButton>
 
-          <IconButton 
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              ml: 1,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: '12px',
+              background: 'rgba(108, 99, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(108, 99, 255, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                background: 'rgba(108, 99, 255, 0.15)',
+                transform: 'scale(1.02)',
+              }
+            }}
             onClick={handleProfileMenuOpen}
-            sx={{ ml: 1 }}
           >
             <Avatar 
               sx={{ 
                 width: 32, 
                 height: 32,
-                backgroundColor: 'primary.main'
+                background: 'linear-gradient(135deg, #6C63FF 0%, #5349E6 100%)',
+                boxShadow: '0 4px 12px rgba(108, 99, 255, 0.4)',
               }}
             >
               {getInitials()}
             </Avatar>
-            <KeyboardArrowDown sx={{ ml: 0.5 }} />
-          </IconButton>
+            <KeyboardArrowDown sx={{ fontSize: 20 }} />
+          </Box>
         </Box>
 
         <Menu

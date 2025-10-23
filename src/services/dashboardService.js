@@ -1,10 +1,10 @@
 import api from '../services/axiosConfig'; 
 
 class DashboardService {
-  async getDashboardData() {
+  async getDashboardData(selectedDate = null) {
     try {
       const [statisticsData, rentalsData] = await Promise.all([
-        this.getStatistics(),
+        this.getStatistics(selectedDate),
         this.getCurrentRentals()
       ]);
 
@@ -18,22 +18,28 @@ class DashboardService {
     }
   }
 
-  async getStatistics() {
+  async getStatistics(selectedDate = null) {
     try {
-        const { data } = await api.get('/dashboard/statistics'); 
+        // Si une date est fournie, extraire le mois et l'année
+        let params = {};
+        if (selectedDate) {
+          const date = new Date(selectedDate);
+          params = {
+            year: date.getFullYear(),
+            month: date.getMonth() // 0-11
+          };
+        }
+        
+        const { data } = await api.get('/dashboard/statistics', { params }); 
         return {
             totalVehicles: data.totalVehicles || 0,
             activeRentals: data.activeRentals || 0,
-            monthlyRevenue: new Intl.NumberFormat('fr-CH', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(data.monthlyRevenue || 0),
-            yearlyRevenue: new Intl.NumberFormat('fr-CH', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(data.yearlyRevenue || 0),
+            monthlyRevenue: data.monthlyRevenue || 0,
+            yearlyRevenue: data.yearlyRevenue || 0,
             monthlyContracts: data.monthlyContracts || 0,
-            yearlyContracts: data.yearlyContracts || 0
+            yearlyContracts: data.yearlyContracts || 0,
+            selectedMonth: data.selectedMonth,
+            selectedYear: data.selectedYear
         };
     } catch (error) {
         console.error('Erreur lors de la récupération des statistiques:', error);

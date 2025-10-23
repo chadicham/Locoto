@@ -6,24 +6,29 @@ const { STRIPE_PLANS_PRICES } = require('../config/stripe.config');
 exports.getStatistics = async (req, res) => {
   try {
     const userId = req.user.id;
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
     
-    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
-    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-    const firstDayOfYear = new Date(currentYear, 0, 1);
+    // Récupérer les paramètres de date depuis la requête (ou utiliser la date actuelle par défaut)
+    const { year, month } = req.query;
+    const today = new Date();
+    const targetYear = year ? parseInt(year) : today.getFullYear();
+    const targetMonth = month !== undefined ? parseInt(month) : today.getMonth();
+    
+    const firstDayOfMonth = new Date(targetYear, targetMonth, 1);
+    const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0);
+    const firstDayOfYear = new Date(targetYear, 0, 1);
+    const lastDayOfYear = new Date(targetYear, 11, 31);
 
     // Récupération du nombre total de véhicules
     const totalVehicles = await Vehicle.countDocuments({ 
       owner: userId 
     });
 
-    // Récupération des locations actives
+    // Récupération des locations actives (pour la date actuelle, pas la date sélectionnée)
+    const now = new Date();
     const activeRentals = await Contract.countDocuments({
       owner: userId,
-      startDate: { $lte: today },
-      endDate: { $gte: today },
+      startDate: { $lte: now },
+      endDate: { $gte: now },
       status: { $nin: ['cancelled', 'terminated'] }
     });
 
@@ -34,7 +39,7 @@ exports.getStatistics = async (req, res) => {
         $gte: firstDayOfMonth, 
         $lte: lastDayOfMonth 
       },
-      status: { $nin: ['cancelled', 'draft'] }
+      status: { $nin: ['cancelled'] } // Inclure les draft dans les statistiques
     }).select('rental.totalAmount');
 
     const monthlyRevenue = monthlyContractsData.reduce((total, contract) => {
@@ -46,9 +51,9 @@ exports.getStatistics = async (req, res) => {
       owner: userId,
       createdAt: { 
         $gte: firstDayOfYear, 
-        $lte: today 
+        $lte: lastDayOfYear 
       },
-      status: { $nin: ['cancelled', 'draft'] }
+      status: { $nin: ['cancelled'] } // Inclure les draft dans les statistiques
     }).select('rental.totalAmount');
 
     const yearlyRevenue = yearlyContractsData.reduce((total, contract) => {
@@ -65,7 +70,9 @@ exports.getStatistics = async (req, res) => {
       monthlyRevenue, // Revenu total des contrats créés ce mois
       yearlyRevenue,  // Revenu total des contrats créés cette année
       monthlyContracts, // Nombre de contrats créés ce mois
-      yearlyContracts   // Nombre de contrats créés cette année
+      yearlyContracts,   // Nombre de contrats créés cette année
+      selectedMonth: targetMonth, // Mois sélectionné (0-11)
+      selectedYear: targetYear // Année sélectionnée
     });
 
   } catch (error) {
@@ -97,7 +104,7 @@ exports.getMonthlyRevenue = async (req, res) => {
           $gte: firstDayOfMonth, 
           $lte: lastDayOfMonth 
         },
-        status: { $nin: ['cancelled', 'draft'] }
+        status: { $nin: ['cancelled'] } // Inclure les draft dans les statistiques
       }).select('rental.totalAmount');
 
       // Calculer le revenu du mois

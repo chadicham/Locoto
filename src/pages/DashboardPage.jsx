@@ -81,11 +81,16 @@ const DashboardPage = () => {
     loadCalendarEvents();
   }, []);
 
+  // Recharger les statistiques quand la date sélectionnée change
+  useEffect(() => {
+    loadDashboardData();
+  }, [selectedDate]);
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await dashboardService.getDashboardData();
+      const data = await dashboardService.getDashboardData(selectedDate);
       setDashboardData(data);
     } catch (error) {
       setError('Impossible de charger les données du tableau de bord');
@@ -118,64 +123,104 @@ const DashboardPage = () => {
   };
 
   const eventStyleGetter = (event) => {
-    let backgroundColor, borderColor;
-    
+    let backgroundColor, borderColor, color;
+
     switch (event.status) {
       case 'pending':
-        backgroundColor = '#FFA726';
-        borderColor = '#F57C00';
+        backgroundColor = 'rgba(245, 158, 11, 0.22)'; // amber
+        borderColor = '#F59E0B';
+        color = '#FBBF24';
         break;
       case 'inProgress':
-        backgroundColor = '#66BB6A';
-        borderColor = '#388E3C';
+        backgroundColor = 'rgba(16, 185, 129, 0.22)'; // emerald
+        borderColor = '#10B981';
+        color = '#34D399';
         break;
       case 'completed':
-        backgroundColor = '#78909C';
-        borderColor = '#455A64';
+        backgroundColor = 'rgba(108, 99, 255, 0.18)'; // violet
+        borderColor = '#6C63FF';
+        color = '#A5B4FC';
         break;
       case 'cancelled':
-        backgroundColor = '#EF5350';
-        borderColor = '#D32F2F';
+        backgroundColor = 'rgba(239, 68, 68, 0.20)'; // red
+        borderColor = '#EF4444';
+        color = '#FCA5A5';
         break;
       default:
-        backgroundColor = '#42A5F5';
-        borderColor = '#1976D2';
+        backgroundColor = 'rgba(59, 130, 246, 0.20)'; // blue
+        borderColor = '#3B82F6';
+        color = '#93C5FD';
     }
 
     return {
       style: {
         backgroundColor,
         borderColor,
-        borderWidth: '2px',
+        color,
+        borderWidth: '1px',
         borderStyle: 'solid',
-        borderRadius: '4px',
-        opacity: 0.8,
-        color: 'white',
-        display: 'block'
+        borderRadius: '10px',
+        display: 'block',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)'
       }
     };
   };
 
   const StatCard = ({ title, value, icon: Icon, suffix = '' }) => (
-    <Card>
+    <Card 
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.1) 0%, rgba(0, 217, 192, 0.05) 100%)',
+          pointerEvents: 'none',
+        }
+      }}
+    >
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
           <Box
             sx={{
-              backgroundColor: 'primary.light',
-              borderRadius: 2,
-              p: 1,
+              background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.2) 0%, rgba(83, 73, 230, 0.3) 100%)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              borderRadius: 3,
+              p: 1.5,
               mr: 2,
-              display: 'flex'
+              display: 'flex',
+              boxShadow: '0 4px 12px rgba(108, 99, 255, 0.2)',
+              border: '1px solid rgba(108, 99, 255, 0.3)',
             }}
           >
-            <Icon sx={{ color: 'primary.main' }} />
+            <Icon sx={{ color: '#8B84FF', fontSize: 28 }} />
           </Box>
-          <Box>
-            <Typography color="text.secondary" variant="body2" gutterBottom>
+          <Box sx={{ flex: 1 }}>
+            <Typography 
+              color="text.secondary" 
+              variant="body2" 
+              gutterBottom
+              sx={{ fontWeight: 500, letterSpacing: '0.5px' }}
+            >
               {title}
             </Typography>
-            <Typography variant="h5" component="div">
+            <Typography 
+              variant="h4" 
+              component="div"
+              sx={{ 
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #E8EAED 0%, #9CA3AF 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
               {value}{suffix}
             </Typography>
           </Box>
@@ -194,9 +239,24 @@ const DashboardPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-        Tableau de bord
-      </Typography>
+      <Box sx={{ mb: 4 }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            mb: 1,
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #6C63FF 0%, #00D9C0 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
+          Tableau de bord
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Vue d'ensemble de votre activité
+        </Typography>
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -215,7 +275,7 @@ const DashboardPage = () => {
         
         <Grid item xs={12} sm={4}>
           <StatCard
-            title="Revenus du mois"
+            title={`Revenus de ${format(selectedDate, 'MMMM yyyy', { locale: frLocale })}`}
             value={`${dashboardData.statistics.monthlyRevenue.toLocaleString('fr-FR')}`}
             suffix=" CHF"
             icon={AccountBalance}
@@ -224,7 +284,7 @@ const DashboardPage = () => {
 
         <Grid item xs={12} sm={4}>
           <StatCard
-            title="Contrats du mois"
+            title={`Contrats de ${format(selectedDate, 'MMMM yyyy', { locale: frLocale })}`}
             value={dashboardData.statistics.monthlyContracts}
             icon={Description}
           />
@@ -234,7 +294,7 @@ const DashboardPage = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6}>
           <StatCard
-            title="Revenus de l'année"
+            title={`Revenus de l'année ${format(selectedDate, 'yyyy')}`}
             value={`${dashboardData.statistics.yearlyRevenue.toLocaleString('fr-FR')}`}
             suffix=" CHF"
             icon={AccountBalance}
@@ -243,7 +303,7 @@ const DashboardPage = () => {
 
         <Grid item xs={12} sm={6}>
           <StatCard
-            title="Contrats de l'année"
+            title={`Contrats de l'année ${format(selectedDate, 'yyyy')}`}
             value={dashboardData.statistics.yearlyContracts}
             icon={Description}
           />
@@ -255,11 +315,22 @@ const DashboardPage = () => {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          mb: 2 
+          mb: 3 
         }}>
-          <Typography variant="h6">
-            Aperçu du calendrier
-          </Typography>
+          <Box>
+            <Typography 
+              variant="h5"
+              sx={{ 
+                fontWeight: 700,
+                mb: 0.5
+              }}
+            >
+              Aperçu du calendrier
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Gérez vos locations en un coup d'œil
+            </Typography>
+          </Box>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={frLocale}>
             <DatePicker
               label="Aller à la date"
@@ -267,12 +338,28 @@ const DashboardPage = () => {
               onChange={(newDate) => {
                 setSelectedDate(newDate);
               }}
-              slotProps={{ textField: { size: 'small' } }}
+              slotProps={{ 
+                textField: { 
+                  size: 'small',
+                  sx: {
+                    '& .MuiOutlinedInput-root': {
+                      background: 'rgba(108, 99, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: '10px',
+                    }
+                  }
+                } 
+              }}
             />
           </LocalizationProvider>
         </Box>
-        <Card sx={{ backgroundColor: 'background.paper' }}>
-          <CardContent>
+        <Card sx={{ 
+          backgroundColor: 'background.paper',
+          '& .rbc-calendar': {
+            background: 'transparent'
+          }
+        }}>
+          <CardContent sx={{ p: 3 }}>
             <Box sx={{ height: '500px' }}>
               <Calendar
                 localizer={localizer}
