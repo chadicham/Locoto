@@ -70,8 +70,8 @@ const DashboardPage = () => {
       activeRentals: 0,
       monthlyRevenue: 0,
       yearlyRevenue: 0,
-      monthlySubscriptions: 0,
-      yearlySubscriptions: 0
+      monthlyContracts: 0,
+      yearlyContracts: 0
     },
     currentRentals: []
   });
@@ -224,8 +224,8 @@ const DashboardPage = () => {
 
         <Grid item xs={12} sm={4}>
           <StatCard
-            title="Abonnements du mois"
-            value={dashboardData.statistics.monthlySubscriptions}
+            title="Contrats du mois"
+            value={dashboardData.statistics.monthlyContracts}
             icon={Description}
           />
         </Grid>
@@ -243,8 +243,8 @@ const DashboardPage = () => {
 
         <Grid item xs={12} sm={6}>
           <StatCard
-            title="Abonnements de l'année"
-            value={dashboardData.statistics.yearlySubscriptions}
+            title="Contrats de l'année"
+            value={dashboardData.statistics.yearlyContracts}
             icon={Description}
           />
         </Grid>

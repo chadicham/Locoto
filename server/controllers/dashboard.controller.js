@@ -27,65 +27,45 @@ exports.getStatistics = async (req, res) => {
       status: { $nin: ['cancelled', 'terminated'] }
     });
 
-    // Calcul des revenus basés sur les nouveaux abonnements du mois
-    const monthlySubscriptions = await User.countDocuments({
-      'subscription.stripeSubscriptionId': { $exists: true },
-      'subscription.subscriptionStatus': 'active',
+    // Calculer le revenu mensuel basé sur les contrats de location
+    const monthlyContractsData = await Contract.find({
+      owner: userId,
       createdAt: { 
         $gte: firstDayOfMonth, 
         $lte: lastDayOfMonth 
-      }
-    });
+      },
+      status: { $nin: ['cancelled', 'draft'] }
+    }).select('rental.totalAmount');
 
-    // Calcul des revenus basés sur les abonnements de l'année
-    const yearlySubscriptions = await User.countDocuments({
-      'subscription.stripeSubscriptionId': { $exists: true },
-      'subscription.subscriptionStatus': 'active',
+    const monthlyRevenue = monthlyContractsData.reduce((total, contract) => {
+      return total + (contract.rental?.totalAmount || 0);
+    }, 0);
+
+    // Calculer le revenu annuel basé sur les contrats de location
+    const yearlyContractsData = await Contract.find({
+      owner: userId,
       createdAt: { 
         $gte: firstDayOfYear, 
         $lte: today 
-      }
-    });
+      },
+      status: { $nin: ['cancelled', 'draft'] }
+    }).select('rental.totalAmount');
 
-    // Récupérer tous les utilisateurs avec abonnement actif créés ce mois
-    const monthlyUsers = await User.find({
-      'subscription.stripeSubscriptionId': { $exists: true },
-      'subscription.subscriptionStatus': 'active',
-      createdAt: { 
-        $gte: firstDayOfMonth, 
-        $lte: lastDayOfMonth 
-      }
-    }).select('subscription.plan');
-
-    // Récupérer tous les utilisateurs avec abonnement actif créés cette année
-    const yearlyUsers = await User.find({
-      'subscription.stripeSubscriptionId': { $exists: true },
-      'subscription.subscriptionStatus': 'active',
-      createdAt: { 
-        $gte: firstDayOfYear, 
-        $lte: today 
-      }
-    }).select('subscription.plan');
-
-    // Calculer le revenu mensuel basé sur les plans
-    const monthlyRevenue = monthlyUsers.reduce((total, user) => {
-      const planPrice = getPlanPrice(user.subscription.plan);
-      return total + planPrice;
+    const yearlyRevenue = yearlyContractsData.reduce((total, contract) => {
+      return total + (contract.rental?.totalAmount || 0);
     }, 0);
 
-    // Calculer le revenu annuel basé sur les plans
-    const yearlyRevenue = yearlyUsers.reduce((total, user) => {
-      const planPrice = getPlanPrice(user.subscription.plan);
-      return total + planPrice;
-    }, 0);
+    // Compter les contrats du mois et de l'année
+    const monthlyContracts = monthlyContractsData.length;
+    const yearlyContracts = yearlyContractsData.length;
 
     res.json({
       totalVehicles,
       activeRentals,
-      monthlyRevenue,
-      yearlyRevenue,
-      monthlySubscriptions,
-      yearlySubscriptions
+      monthlyRevenue, // Revenu total des contrats créés ce mois
+      yearlyRevenue,  // Revenu total des contrats créés cette année
+      monthlyContracts, // Nombre de contrats créés ce mois
+      yearlyContracts   // Nombre de contrats créés cette année
     });
 
   } catch (error) {
@@ -95,18 +75,6 @@ exports.getStatistics = async (req, res) => {
     });
   }
 };
-
-// Fonction utilitaire pour obtenir le prix d'un plan
-function getPlanPrice(planName) {
-  const prices = {
-    'gratuit': 0,
-    'starter': 9.90,
-    'pro': 29.90,
-    'business': 49.90,
-    'unlimited': 99.90
-  };
-  return prices[planName] || 0;
-}
 
 // Nouvelle fonction pour obtenir les revenus mensuels détaillés
 exports.getMonthlyRevenue = async (req, res) => {
@@ -122,35 +90,25 @@ exports.getMonthlyRevenue = async (req, res) => {
       const firstDayOfMonth = new Date(targetYear, month, 1);
       const lastDayOfMonth = new Date(targetYear, month + 1, 0);
 
-      // Compter les abonnements créés ce mois-là
-      const monthSubscriptions = await User.countDocuments({
-        'subscription.stripeSubscriptionId': { $exists: true },
-        'subscription.subscriptionStatus': 'active',
+      // Récupérer les contrats créés ce mois-là
+      const monthContracts = await Contract.find({
+        owner: userId,
         createdAt: { 
           $gte: firstDayOfMonth, 
           $lte: lastDayOfMonth 
-        }
-      });
-
-      // Récupérer les utilisateurs avec leurs plans
-      const monthUsers = await User.find({
-        'subscription.stripeSubscriptionId': { $exists: true },
-        'subscription.subscriptionStatus': 'active',
-        createdAt: { 
-          $gte: firstDayOfMonth, 
-          $lte: lastDayOfMonth 
-        }
-      }).select('subscription.plan');
+        },
+        status: { $nin: ['cancelled', 'draft'] }
+      }).select('rental.totalAmount');
 
       // Calculer le revenu du mois
-      const revenue = monthUsers.reduce((total, user) => {
-        return total + getPlanPrice(user.subscription.plan);
+      const revenue = monthContracts.reduce((total, contract) => {
+        return total + (contract.rental?.totalAmount || 0);
       }, 0);
 
       monthlyData.push({
         month: month + 1,
         monthName: new Date(targetYear, month).toLocaleString('fr-FR', { month: 'long' }),
-        subscriptions: monthSubscriptions,
+        contracts: monthContracts.length,
         revenue: revenue
       });
     }
@@ -159,7 +117,7 @@ exports.getMonthlyRevenue = async (req, res) => {
       year: targetYear,
       months: monthlyData,
       totalRevenue: monthlyData.reduce((sum, m) => sum + m.revenue, 0),
-      totalSubscriptions: monthlyData.reduce((sum, m) => sum + m.subscriptions, 0)
+      totalContracts: monthlyData.reduce((sum, m) => sum + m.contracts, 0)
     });
 
   } catch (error) {
@@ -193,11 +151,11 @@ exports.getCurrentRentals = async (req, res) => {
         model: rental.vehicle.model,
         licensePlate: rental.vehicle.licensePlate
       },
-      renterName: rental.renterName,
-      renterId: rental.renterId,
-      startDate: rental.startDate,
-      endDate: rental.endDate,
-      amount: rental.amount
+      renterName: rental.renterName || `${rental.renter.firstName} ${rental.renter.lastName}`,
+      renterId: rental.renterId || rental.renter.email,
+      startDate: rental.startDate || rental.rental.startDate,
+      endDate: rental.endDate || rental.rental.endDate,
+      amount: rental.amount || rental.rental.totalAmount
     }));
 
     res.json(formattedRentals);

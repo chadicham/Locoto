@@ -32,8 +32,8 @@ class DashboardService {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }).format(data.yearlyRevenue || 0),
-            monthlySubscriptions: data.monthlySubscriptions || 0,
-            yearlySubscriptions: data.yearlySubscriptions || 0
+            monthlyContracts: data.monthlyContracts || 0,
+            yearlyContracts: data.yearlyContracts || 0
         };
     } catch (error) {
         console.error('Erreur lors de la récupération des statistiques:', error);

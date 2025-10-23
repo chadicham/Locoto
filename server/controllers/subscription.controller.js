@@ -247,8 +247,15 @@ exports.reactivateSubscription = async (req, res) => {
 
 // Fonctions utilitaires
 async function getOrCreateStripeCustomer(user) {
-  if (user.stripeCustomerId) {
-    return await stripe.customers.retrieve(user.stripeCustomerId);
+  // Vérifier si le user a déjà un subscription.stripeCustomerId
+  const stripeCustomerId = user.subscription?.stripeCustomerId || user.stripeCustomerId;
+  
+  if (stripeCustomerId) {
+    try {
+      return await stripe.customers.retrieve(stripeCustomerId);
+    } catch (error) {
+      console.log('Customer not found, creating new one');
+    }
   }
 
   const customer = await stripe.customers.create({
@@ -259,7 +266,7 @@ async function getOrCreateStripeCustomer(user) {
   });
 
   await User.findByIdAndUpdate(user.id, {
-    stripeCustomerId: customer.id
+    'subscription.stripeCustomerId': customer.id
   });
 
   return customer;
@@ -267,22 +274,38 @@ async function getOrCreateStripeCustomer(user) {
 
 async function handleSubscriptionChange(subscription) {
   const userId = subscription.metadata.userId;
+  const planId = getPlanIdFromStripePrice(subscription.items.data[0].price.id);
+  
+  // Déterminer la limite de véhicules selon le plan
+  const vehicleLimits = {
+    'starter': 3,
+    'pro': 10,
+    'business': 25,
+    'unlimited': 999999
+  };
   
   await User.findByIdAndUpdate(userId, {
-    subscriptionStatus: subscription.status,
-    subscriptionPlan: getPlanIdFromStripePrice(subscription.items.data[0].price.id),
-    subscriptionEnd: new Date(subscription.current_period_end * 1000)
+    'subscription.plan': planId,
+    'subscription.subscriptionStatus': subscription.status,
+    'subscription.stripeSubscriptionId': subscription.id,
+    'subscription.vehicleLimit': vehicleLimits[planId] || 1,
+    'subscription.expiresAt': new Date(subscription.current_period_end * 1000)
   });
+  
+  console.log(`✅ Abonnement mis à jour pour l'utilisateur ${userId}: plan=${planId}, status=${subscription.status}`);
 }
 
 async function handleSubscriptionCancelled(subscription) {
   const userId = subscription.metadata.userId;
   
   await User.findByIdAndUpdate(userId, {
-    subscriptionStatus: 'cancelled',
-    subscriptionPlan: 'free',
-    subscriptionEnd: new Date()
+    'subscription.subscriptionStatus': 'cancelled',
+    'subscription.plan': 'gratuit',
+    'subscription.vehicleLimit': 1,
+    'subscription.expiresAt': new Date()
   });
+  
+  console.log(`❌ Abonnement annulé pour l'utilisateur ${userId}`);
 }
 
 async function handlePaymentSuccess(invoice) {
