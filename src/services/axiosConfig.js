@@ -72,12 +72,23 @@ api.interceptors.response.use(
   error => {
     if (process.env.NODE_ENV === 'development') {
       console.error('Erreur API:', error.response?.data);
+      console.error('URL:', error.config?.url);
     }
     
-    // Déconnecter l'utilisateur si le token est invalide
-    if (error.response?.status === 401) {
+    // Ne PAS déconnecter automatiquement si on est sur la page de login ou register
+    const isAuthRoute = error.config?.url?.includes('/auth/login') || 
+                        error.config?.url?.includes('/auth/register') ||
+                        error.config?.url?.includes('/auth/forgot-password');
+    
+    // Déconnecter l'utilisateur si le token est invalide (mais pas sur les routes d'auth)
+    if (error.response?.status === 401 && !isAuthRoute) {
+      console.log('🚪 Token invalide, déconnexion...');
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      
+      // Ne rediriger que si on n'est pas déjà sur /login
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     
     return Promise.reject(error);
